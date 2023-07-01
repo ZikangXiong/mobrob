@@ -1,118 +1,221 @@
 from abc import ABC, abstractmethod
-from typing import List, Union
 
-import gym
+import gymnasium as gym
 import numpy as np
+import pybullet as p
 
 from mobrob.envs.mujoco_robots.robots.engine import Engine
 from mobrob.envs.pybullet_robots.base import BulletEnv
 from mobrob.envs.pybullet_robots.robots.drone import Drone
-from mobrob.stl.tasks import TaskBase
 
 
-class EnvWrapper(ABC):
-    def __init__(self, task: TaskBase, enable_gui: bool = True):
-        self.task = task
+class EnvWrapper(ABC, gym.Env):
+    def __init__(self, enable_gui: bool = False, auto_reset_goal: bool = False):
+        """
+        Gym environment wrapper for robots
+        :param enable_gui: whether to enable the GUI
+        :param auto_reset_goal: whether to reset the goal automatically when the robot reaches the goal. It is useful during training.
+        """
         self.enable_gui = enable_gui
-        self.obstacle_list = self.task.task_map.obs_list
-        self.wp_list = self.task.wp_list
+        self.auto_reset_goal = auto_reset_goal
         self._goal = None
-        self.gym_env: Union[Engine, BulletEnv] = self.build_env()
+        self.env: Engine | BulletEnv = self.build_env()
+        self.observation_space = self.get_observation_space()
+        self.action_space = self.get_action_space()
+        self.init_space = self.get_init_space()
+        self.goal_space = self.get_goal_space()
 
     @abstractmethod
-    def _set_goal(self, goal: Union[List, np.ndarray]):
+    def _set_goal(self, goal: list | np.ndarray):
+        """
+        Set the goal position of the robot, for example, [x, y, z]
+        """
         raise NotImplementedError()
 
     @abstractmethod
-    def build_env(self) -> Union[Engine, BulletEnv]:
+    def build_env(self) -> Engine | BulletEnv:
+        """
+        Build the environment, for example, load the robot and the world
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def get_pos(self):
+        """
+        Get the position of the robot, for example, [x, y, z]
+        """
         pass
 
     @abstractmethod
-    def set_pos(self, pos: Union[List, np.ndarray]):
+    def set_pos(self, pos: list | np.ndarray):
+        """
+        Set the position of the robot, for example, [x, y, z]
+        """
         pass
 
     @abstractmethod
     def get_obs(self) -> np.ndarray:
+        """
+        Get the observation of the robot, for example, [x, y, z]
+        """
         pass
 
-    def set_goal(self, goal: Union[List, np.ndarray]):
+    @abstractmethod
+    def get_observation_space(self) -> gym.Space:
+        """
+        Get the observation space of the robot, for example, Box(3,)
+        """
+        pass
+
+    @abstractmethod
+    def get_action_space(self) -> gym.Space:
+        """
+        Get the action space of the robot, for example, Box(3,)
+        """
+        pass
+
+    @abstractmethod
+    def get_init_space(self) -> gym.Space:
+        """
+        Get the init space of the robot, for example, Box(3,)
+        """
+        pass
+
+    @abstractmethod
+    def get_goal_space(self) -> gym.Space:
+        """
+        Get the goal space of the robot, for example, Box(3,)
+        """
+        pass
+
+    def set_goal(self, goal: list | np.ndarray):
+        """
+        Set the goal position of the robot, for example, [x, y, z]
+        """
         self._set_goal(goal)
         self._goal = np.array(goal)
 
+    def reset_random_goal(self):
+        """
+        Reset the goal position of the robot randomly
+        """
+        self.set_goal(self.goal_space.sample())
+
     def get_goal(self) -> np.ndarray:
+        """
+        Get the goal position of the robot, for example, [x, y, z]
+        """
         return self._goal
 
-    def step(self, action: Union[List, np.ndarray]):
+    def step(
+        self, action: list | np.ndarray
+    ) -> tuple[np.ndarray, float, bool, bool, dict]:
+        """
+        Step the environment by applying the action to the robot,
+        the returns are the observation, reward, terminated, trucated, info
+        """
         if self.enable_gui:
-            self.gym_env.render()
-        return self.gym_env.step(action)
+            self.env.render()
 
-    def reset(self, init_pos: Union[List, np.ndarray] = None):
-        self.gym_env.reset()
+        obs, reward, terminated, trucated, info = self.env.step(action)
+
+        if self.auto_reset_goal and self.reached():
+            self.reset_random_goal()
+
+        return obs, reward, terminated, trucated, info
+
+    def reset(self, init_pos: list | np.ndarray = None, *args, **kwargs) -> np.ndarray:
+        """
+        Reset the environment, the return is the observation and reset info
+        """
+        self.env.reset()
+
         if init_pos is not None:
             self.set_pos(init_pos)
-        return self.get_obs()
+        else:
+            self.set_pos(self.init_space.sample())
+
+        if self.auto_reset_goal:
+            self.reset_random_goal()
+
+        return self.get_obs(), {}
 
     def reached(self, reach_radius: float = 0.3) -> bool:
+        """
+        Check if the robot has reached the goal
+        """
         return np.linalg.norm(self.get_pos() - self.get_goal()) < reach_radius
 
+    def render(self, mode="human"):
+        """
+        Render the environment
+        """
+        if self.enable_gui:
+            return self.env.render(mode=mode)
+        else:
+            return None
+
     def close(self):
-        self.gym_env.close()
+        self.env.close()
 
 
 class MujocoEnv(EnvWrapper, ABC):
     BASE_SENSORS = ["accelerometer", "velocimeter", "gyro", "magnetometer"]
 
-    def __init__(self, task: TaskBase, enable_gui: bool = True):
-        super().__init__(task, enable_gui)
-        for wp in self.task.wp_list:
-            self.add_wp_marker(wp.pos, wp.size)
-
-    def get_obs_config(self) -> dict:
-        config = {
-            "walls_num": len(self.task.task_map.obs_list),
-            "walls_locations": [obs.pos for obs in self.task.task_map.obs_list],
-            "walls_size": [obs.size for obs in self.task.task_map.obs_list],
-        }
-        return config
-
     @abstractmethod
     def get_robot_config(self) -> dict:
         pass
 
+    def build_env(self) -> Engine:
+        config = self.get_robot_config()
+        env = Engine(config)
+
+        return env
+
+    def get_observation_space(self) -> gym.Space:
+        return self.env.observation_space
+
+    def get_action_space(self) -> gym.Space:
+        return self.env.action_space
+
+    def get_init_space(self) -> gym.Space:
+        x_min, y_min, x_max, y_max = self.env.placements_extents
+        return gym.spaces.Box(
+            low=np.array([x_min, y_min], dtype=np.float32) / 2,
+            high=np.array([x_max, y_max], dtype=np.float32) / 2,
+            dtype=np.float32,
+        )
+
+    def get_goal_space(self) -> gym.Space:
+        x_min, y_min, x_max, y_max = self.env.placements_extents
+        return gym.spaces.Box(
+            low=np.array([x_min, y_min], dtype=np.float32),
+            high=np.array([x_max, y_max], dtype=np.float32),
+            dtype=np.float32,
+        )
+
+    def _set_goal(self, goal: list | np.ndarray):
+        self.env.set_goal_position(goal_xy=goal[:2])
+
+    def get_pos(self) -> np.ndarray:
+        return np.array(self.env.robot_pos[:2])
+
+    def get_obs(self) -> np.ndarray:
+        return self.env.obs()
+
     def add_wp_marker(
         self,
-        pos: Union[List, np.ndarray],
+        pos: list | np.ndarray,
         size: float,
         color=(0, 1, 1, 0.5),
         alpha=0.5,
         label: str = "",
     ):
-        self.gym_env.add_render_callback(
-            lambda: self.gym_env.render_sphere(
+        self.env.add_render_callback(
+            lambda: self.env.render_sphere(
                 pos=pos, size=size, color=color, alpha=alpha, label=label
             )
         )
-
-    def build_env(self) -> Engine:
-        config = self.get_robot_config()
-        config.update(self.get_obs_config())
-        gym_env = Engine(config)
-
-        return gym_env
-
-    def _set_goal(self, goal: Union[List, np.ndarray]):
-        self.gym_env.set_goal_position(goal_xy=goal[:2])
-
-    def get_pos(self) -> np.ndarray:
-        return np.array(self.gym_env.robot_pos[:2])
-
-    def get_obs(self) -> np.ndarray:
-        return self.gym_env.obs()
 
 
 class PointEnv(MujocoEnv):
@@ -124,11 +227,11 @@ class PointEnv(MujocoEnv):
             "observe_goal_comp": True,
         }
 
-    def set_pos(self, pos: Union[List, np.ndarray]):
-        body_id = self.gym_env.sim.model.body_name2id("robot")
-        self.gym_env.sim.model.body_pos[body_id][:2] = pos
-        self.gym_env.sim.data.body_xpos[body_id][:2] = pos
-        self.gym_env.sim.forward()
+    def set_pos(self, pos: list | np.ndarray):
+        body_id = self.env.sim.model.body_name2id("robot")
+        self.env.sim.model.body_pos[body_id][:2] = pos
+        self.env.sim.data.body_xpos[body_id][:2] = pos
+        self.env.sim.forward()
 
 
 class CarEnv(MujocoEnv):
@@ -143,13 +246,13 @@ class CarEnv(MujocoEnv):
             "box_density": 0.0005,
         }
 
-    def set_pos(self, pos: Union[List, np.ndarray]):
-        indx = self.gym_env.sim.model.get_joint_qpos_addr("robot")
-        sim_state = self.gym_env.sim.get_state()
+    def set_pos(self, pos: list | np.ndarray):
+        indx = self.env.sim.model.get_joint_qpos_addr("robot")
+        sim_state = self.env.sim.get_state()
 
         sim_state.qpos[indx[0] : indx[0] + 2] = pos
-        self.gym_env.sim.set_state(sim_state)
-        self.gym_env.sim.forward()
+        self.env.sim.set_state(sim_state)
+        self.env.sim.forward()
 
 
 class DoggoEnv(MujocoEnv):
@@ -171,41 +274,125 @@ class DoggoEnv(MujocoEnv):
             "observe_goal_comp": True,
         }
 
-    def set_pos(self, pos: Union[List, np.ndarray]):
-        indx = self.gym_env.sim.model.get_joint_qpos_addr("robot")
-        sim_state = self.gym_env.sim.get_state()
+    def set_pos(self, pos: list | np.ndarray):
+        indx = self.env.sim.model.get_joint_qpos_addr("robot")
+        sim_state = self.env.sim.get_state()
 
         sim_state.qpos[indx[0] : indx[0] + 2] = pos
-        self.gym_env.sim.set_state(sim_state)
-        self.gym_env.sim.forward()
+        self.env.sim.set_state(sim_state)
+        self.env.sim.forward()
 
 
 class DroneEnv(EnvWrapper):
     def build_env(self) -> gym.Env:
+        self._goal = None
+        self._prev_pos = None
         return BulletEnv(Drone(enable_gui=self.enable_gui))
 
-    def _set_goal(self, goal: Union[List, np.ndarray]):
-        pass
-
     def get_pos(self) -> np.ndarray:
-        # np.array(p.getBasePositionAndOrientation(self.robot_id, self.client_id)[0])
-        pass
+        return np.array(
+            p.getBasePositionAndOrientation(
+                self.env.robot.robot_id, self.env.client_id
+            )[0]
+        )
 
-    def set_pos(self, pos: Union[List, np.ndarray]):
-        pass
+    def set_pos(self, pos: list | np.ndarray):
+        p.resetBasePositionAndOrientation(
+            self.env.robot.robot_id, pos, [0, 0, 0, 1], self.env.client_id
+        )
 
     def get_obs(self) -> np.ndarray:
-        pass
+        return self.env.get_obs()
+
+    def get_observation_space(self) -> gym.Space:
+        high = np.array(
+            [
+                # x, y, z
+                20.0,
+                20.0,
+                20.0,
+                # roll, pitch, yaw
+                np.pi,
+                np.pi,
+                np.pi,
+                # vx, vy, vz
+                15.0,
+                15.0,
+                15.0,
+                # roll rate, pitch rate, yaw rate
+                0.2 * np.pi,
+                0.2 * np.pi,
+                0.2 * np.pi,
+            ],
+            dtype=np.float32,
+        )
+        low = np.array(
+            [
+                # x, y, z
+                -20.0,
+                -20.0,
+                0.0,
+                # roll, pitch, yaw
+                -np.pi,
+                -np.pi,
+                -np.pi,
+                # vx, vy, vz
+                -15.0,
+                -15.0,
+                -15.0,
+                # roll rate, pitch rate, yaw rate
+                -0.2 * np.pi,
+                -0.2 * np.pi,
+                -0.2 * np.pi,
+            ],
+            dtype=np.float32,
+        )
+        return gym.spaces.Box(low=low, high=high, shape=(12,), dtype=np.float32)
+
+    def get_action_space(self) -> gym.Space:
+        return gym.spaces.Box(
+            low=0, high=self.env.robot.max_rpm, shape=(4,), dtype=np.float32
+        )
+
+    def get_init_space(self) -> gym.Space:
+        lb = np.array([-5, -5, 5], dtype=np.float32)
+        ub = np.array([5, 5, 10], dtype=np.float32)
+        return gym.spaces.Box(low=lb, high=ub, dtype=np.float32)
+
+    def get_goal_space(self) -> gym.Space:
+        lb = np.array([-20, -20, 20], dtype=np.float32)
+        ub = np.array([-20, -20, 0], dtype=np.float32)
+        return gym.spaces.Box(low=lb, high=ub, dtype=np.float32)
+
+    def _set_goal(self, goal: list | np.ndarray):
+        self._goal = goal
+        self._prev_pos = None
+
+    def step(self, action: list | np.ndarray):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+
+        # Calculate reward
+        if self._prev_pos is None:
+            self._prev_pos = self.get_pos()
+
+        if self._goal is None:
+            reward = 0
+        else:
+            reward = np.linalg.norm(self._goal - self._prev_pos) - np.linalg.norm(
+                self._goal - self.get_pos()
+            )
+
+        return obs, reward, terminated, truncated, info
 
 
-def get_env(robot_name: str, task: TaskBase, enable_gui: bool = True):
+def get_env(robot_name: str, enable_gui: bool = False, auto_reset: bool = False):
     if robot_name == "drone":
-        return DroneEnv(task, enable_gui)
+        return DroneEnv(enable_gui, auto_reset)
     elif robot_name == "point":
-        return PointEnv(task, enable_gui)
+        return PointEnv(enable_gui, auto_reset)
     elif robot_name == "car":
-        return CarEnv(task, enable_gui)
+        return CarEnv(enable_gui, auto_reset)
     elif robot_name == "doggo":
-        return DoggoEnv(task, enable_gui)
+        return DoggoEnv(enable_gui, auto_reset)
     else:
         raise ValueError(f"Env {robot_name} not found")

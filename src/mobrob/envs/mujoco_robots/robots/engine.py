@@ -4,8 +4,7 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import glfw
-import gym
-import gym.spaces
+import gymnasium as gym
 import mujoco_py
 import numpy as np
 from mujoco_py import MjRenderContextOffscreen, MjViewer, MujocoException, const
@@ -188,7 +187,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         # reward_distance should be positive to encourage moving towards the goal
         # if reward_distance is 0, then the reward function is sparse
         "reward_distance": 1.0,  # Dense reward multiplied by the distance moved to the goal
-        "reward_goal": 1.0,  # Sparse reward for being inside the goal area
+        "reward_goal": 20.0,  # Sparse reward for being inside the goal area
         "reward_box_dist": 1.0,  # Dense reward for moving the robot towards the box
         "reward_box_goal": 1.0,  # Reward for moving the box towards the goal
         "reward_orientation": False,  # Reward for being upright
@@ -1463,9 +1462,9 @@ class Engine(gym.Env, gym.utils.EzPickle):
         if self.steps >= self.num_steps:
             self.done = True  # Maximum number of steps in an episode reached
 
-        return self.obs(), reward, False if self.never_done else self.done, info
+        return self.obs(), reward, False if self.never_done else self.done, False, info
 
-    def reward(self, keep_last=False):
+    def reward(self, keep_last=True):
         """Calculate the dense component of reward.  Call exactly once per step"""
         reward = 0.0
         # Distance from robot to goal

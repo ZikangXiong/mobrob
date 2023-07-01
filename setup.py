@@ -7,6 +7,7 @@ setup(
     name="mobrob",
     version="0.0.1",
     description="Goal-conditioned control for mobile robot environments",
+    python_requires=">=3.10",
     author="Zikang Xiong",
     package_dir={"": "src"},
     packages=find_packages("src"),

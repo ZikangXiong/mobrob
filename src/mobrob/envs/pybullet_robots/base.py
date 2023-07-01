@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 from typing import List, Union
 
-import gym
 import numpy as np
 import pybullet as p
 
@@ -70,13 +69,13 @@ class RobotBase(ABC):
         pass
 
 
-class BulletEnv(gym.Env):
-    def __init__(self, robot: RobotBase):
+class BulletEnv:
+    def __init__(self, robot: RobotBase, camera_following: bool = False):
         self.world = robot.world
         self.robot = robot
 
         self._expose()
-        self._camera_following = False
+        self._camera_following = camera_following
 
     def _expose(self):
         self.client_id = self.world.client_id
@@ -104,7 +103,7 @@ class BulletEnv(gym.Env):
                 cameraPitch=-20,
                 cameraTargetPosition=base_pos,
             )
-        return self.get_obs(), 0, False, {}
+        return self.get_obs(), 0, False, False, {}
 
     def render(self, mode="human"):
         pass
