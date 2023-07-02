@@ -29,7 +29,7 @@ def train_with_ppo(env_name, finetune=False, save_freq=1_000_000):
 
     if finetune:
         ppo_ctrl.ppo.policy.load_state_dict(
-            PPO.load(f"{DATA_DIR}/policies/{env_name}-ppo.zip").policy.state_dict()
+            PPO.load(f"{DATA_DIR}/policies/{env_name}-ppo.zip").policy.state_dict(),
         )
 
     temp_dir = f"{DATA_DIR}/policies/tmp/{env_name}-ppo"

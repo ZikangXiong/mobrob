@@ -16,7 +16,12 @@ ppo_kwargs:
   gae_lambda: 0.5
   clip_range: 0.2
   verbose: 1
+  gamma: 0.999
+  policy_kwargs: 
+    net_arch: 
+      pi: [16, 16]
+      vf: [16, 16]
   device: cpu
 
 # total simulation steps
-total_timesteps: 50_000_000
+total_timesteps: 20_000_000
