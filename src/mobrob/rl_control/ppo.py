@@ -15,24 +15,26 @@ class PPOCtrl:
         n_env: int,
         vec_env_type: str = "dummy",
         enable_gui: bool = False,
+        seed: int = 0,
     ) -> None:
         self.ppo_kwargs = ppo_kwargs
         self.env_name = env_name
         self.time_limit = time_limit
         self.n_env = n_env
 
-        env_fns = [
-            lambda: Monitor(
-                TimeLimit(
-                    get_env(
-                        env_name,
-                        enable_gui=enable_gui,
-                        terminate_on_goal=True,
-                    ),
-                    time_limit,
-                )
-            )
-        ] * n_env
+        def get_one_env_fn(seed: int):
+            def create_env():
+                env = get_env(env_name, enable_gui=enable_gui, terminate_on_goal=True)
+                env = TimeLimit(env, time_limit)
+                env = Monitor(env)
+
+                env.seed(seed)
+
+                return env
+
+            return create_env
+
+        env_fns = [get_one_env_fn(seed + i) for i in range(n_env)]
 
         if vec_env_type == "subproc":
             vec_env = SubprocVecEnv(env_fns)
@@ -52,6 +54,7 @@ class PPOCtrl:
             n_env=config["n_envs"],
             vec_env_type=config["vec_env_type"],
             enable_gui=config["enable_gui"],
+            seed=config["seed"],
         )
 
     def learn(self, total_timesteps: int = 1_000_000) -> None:

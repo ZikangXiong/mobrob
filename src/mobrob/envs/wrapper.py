@@ -1,3 +1,4 @@
+import random
 from abc import ABC, abstractmethod
 
 import gymnasium as gym
@@ -31,6 +32,12 @@ class EnvWrapper(ABC, gym.Env):
         self.goal_space = self.get_goal_space()
 
         self._first_reset = True
+
+    def seed(self, seed=None):
+        """
+        Seed the environment
+        """
+        self.env.seed(seed)
 
     @abstractmethod
     def _set_goal(self, goal: list | np.ndarray):
