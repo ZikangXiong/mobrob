@@ -10,11 +10,11 @@ seed: 0
 ppo_kwargs: 
   policy: MlpPolicy
   n_steps: 1000
-  batch_size: 500
+  batch_size: 100
   n_epochs: 5
   ent_coef: 0.01
-  gae_lambda: 0.95
-  clip_range: 0.1
+  gae_lambda: 0.5
+  clip_range: 0.2
   verbose: 1
   device: cpu
 

@@ -39,6 +39,12 @@ class EnvWrapper(ABC, gym.Env):
         """
         self.env.seed(seed)
 
+        # seed the spaces
+        self.init_space.seed(seed)
+        self.goal_space.seed(seed)
+        self.action_space.seed(seed)
+        self.observation_space.seed(seed)
+
     @abstractmethod
     def _set_goal(self, goal: list | np.ndarray):
         """
@@ -163,6 +169,14 @@ class EnvWrapper(ABC, gym.Env):
         """
         Reset the environment, the return is the observation and reset info
         """
+        if "seed" in kwargs:
+            self.seed(kwargs.pop("seed"))
+
+        if len(args) > 0:
+            print(f"Warning: args ({args}) is not empty, it is ignored.")
+        if len(kwargs) > 0:
+            print(f"Warning: kwargs ({kwargs}) is not empty, it is ignored.")
+
         if self._first_reset or not self.reached():
             # Only reset the robot if it has not reached the goal, this saves lots of simulation time.
             # Calling reset when the robot does not not meet the goal means the time limit is reached.

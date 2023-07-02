@@ -10,7 +10,7 @@ from mobrob.rl_control.ppo import PPOCtrl
 from mobrob.utils import DATA_DIR
 
 # for fast inference
-torch.set_num_threads(2)
+torch.set_num_threads(1)
 
 
 def train_with_ppo(env_name, finetune=False, save_freq=1_000_000):
