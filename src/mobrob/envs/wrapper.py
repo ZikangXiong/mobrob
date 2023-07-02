@@ -1,11 +1,11 @@
-import random
 from abc import ABC, abstractmethod
 
 import gymnasium as gym
 import numpy as np
 import pybullet as p
+from gymnasium.wrappers import TimeLimit
 
-from mobrob.envs.mujoco_robots.robots.engine import Engine
+from mobrob.envs.mujoco_robots.robots.engine import Engine, quat2zalign
 from mobrob.envs.pybullet_robots.base import BulletEnv
 from mobrob.envs.pybullet_robots.robots.drone import Drone
 
@@ -136,7 +136,7 @@ class EnvWrapper(ABC, gym.Env):
         self._prev_pos = current_pos
 
         if self.reached():
-            reward += 1.0
+            reward += 5.0
 
         return reward
 
@@ -316,6 +316,13 @@ class DoggoEnv(MujocoEnv):
             "observe_goal_comp": True,
         }
 
+    def reward_fn(self) -> float:
+        get_closer_r = super().reward_fn()
+        zalign = quat2zalign(self.env.data.get_body_xquat("robot"))
+        upright_r = 0.002 * zalign
+
+        return get_closer_r + upright_r
+
     def set_pos(self, pos: list | np.ndarray):
         indx = self.env.sim.model.get_joint_qpos_addr("robot")
         sim_state = self.env.sim.get_state()
@@ -410,17 +417,23 @@ class DroneEnv(EnvWrapper):
 
 
 def get_env(
-    robot_name: str,
+    env_name: str,
     enable_gui: bool = False,
     terminate_on_goal: bool = False,
+    time_limit: int | None = None,
 ):
-    if robot_name == "drone":
-        return DroneEnv(enable_gui, terminate_on_goal)
-    elif robot_name == "point":
-        return PointEnv(enable_gui, terminate_on_goal)
-    elif robot_name == "car":
-        return CarEnv(enable_gui, terminate_on_goal)
-    elif robot_name == "doggo":
-        return DoggoEnv(enable_gui, terminate_on_goal)
+    if env_name == "drone":
+        env = DroneEnv(enable_gui, terminate_on_goal)
+    elif env_name == "point":
+        env = PointEnv(enable_gui, terminate_on_goal)
+    elif env_name == "car":
+        env = CarEnv(enable_gui, terminate_on_goal)
+    elif env_name == "doggo":
+        env = DoggoEnv(enable_gui, terminate_on_goal)
     else:
-        raise ValueError(f"Env {robot_name} not found")
+        raise ValueError(f"Env {env_name} not found")
+
+    if time_limit is not None:
+        env = TimeLimit(env, max_episode_steps=time_limit)
+
+    return env

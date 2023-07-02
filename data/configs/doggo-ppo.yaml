@@ -1,7 +1,7 @@
 # environment parameters
 env_name: doggo
-time_limit: 2000
-n_envs: 64
+time_limit: 1000
+n_envs: 16
 vec_env_type: subproc
 enable_gui: False
 seed: 0
@@ -9,14 +9,14 @@ seed: 0
 # parameters of stable-baselines3 PPO algorithm
 ppo_kwargs: 
   policy: MlpPolicy
-  n_steps: 2000
-  batch_size: 1000
-  n_epochs: 20
-  ent_coef: 0.05
+  n_steps: 1000
+  batch_size: 500
+  n_epochs: 5
+  ent_coef: 0.01
   gae_lambda: 0.95
-  clip_range: 0.2
+  clip_range: 0.1
   verbose: 1
   device: cpu
 
 # total simulation steps
-total_timesteps: 16_000_000
+total_timesteps: 50_000_000
