@@ -1,7 +1,7 @@
 # environment parameters
 env_name: point
 time_limit: 1000
-n_envs: 4
+n_envs: 2
 vec_env_type: subproc
 enable_gui: False
 

@@ -23,7 +23,7 @@ def train_with_ppo(env_name):
 
 if __name__ == "__main__":
     args_parser = argparse.ArgumentParser()
-    args_parser.add_argument("--env_name", type=str, default="doggo")
+    args_parser.add_argument("--env_name", type=str, default="car")
 
     args = args_parser.parse_args()
     train_with_ppo(env_name=args.env_name)

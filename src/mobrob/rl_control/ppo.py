@@ -24,7 +24,11 @@ class PPOCtrl:
         env_fns = [
             lambda: Monitor(
                 TimeLimit(
-                    get_env(env_name, enable_gui=enable_gui, auto_reset=True),
+                    get_env(
+                        env_name,
+                        enable_gui=enable_gui,
+                        terminate_on_goal=True,
+                    ),
                     time_limit,
                 )
             )

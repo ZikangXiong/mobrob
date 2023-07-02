@@ -10,20 +10,27 @@ from mobrob.envs.pybullet_robots.robots.drone import Drone
 
 
 class EnvWrapper(ABC, gym.Env):
-    def __init__(self, enable_gui: bool = False, auto_reset_goal: bool = False):
+    def __init__(
+        self,
+        enable_gui: bool = False,
+        terminate_on_goal: bool = False,
+    ):
         """
         Gym environment wrapper for robots
         :param enable_gui: whether to enable the GUI
-        :param auto_reset_goal: whether to reset the goal automatically when the robot reaches the goal. It is useful during training.
         """
         self.enable_gui = enable_gui
-        self.auto_reset_goal = auto_reset_goal
+        self.terminate_on_goal = terminate_on_goal
         self._goal = None
+        self._prev_pos = None
+
         self.env: Engine | BulletEnv = self.build_env()
         self.observation_space = self.get_observation_space()
         self.action_space = self.get_action_space()
         self.init_space = self.get_init_space()
         self.goal_space = self.get_goal_space()
+
+        self._first_reset = True
 
     @abstractmethod
     def _set_goal(self, goal: list | np.ndarray):
@@ -107,6 +114,25 @@ class EnvWrapper(ABC, gym.Env):
         """
         return self._goal
 
+    def reward_fn(self) -> float:
+        """
+        The default reward is the time derivative of the distance to the goal
+        Overwrite this function if you want to use a different reward function
+        """
+        current_pos = self.get_pos()
+        if self._goal is None:
+            reward = 0
+        else:
+            reward = np.linalg.norm(self._goal - self._prev_pos) - np.linalg.norm(
+                self._goal - current_pos
+            )
+        self._prev_pos = current_pos
+
+        if self.reached():
+            reward += 1.0
+
+        return reward
+
     def step(
         self, action: list | np.ndarray
     ) -> tuple[np.ndarray, float, bool, bool, dict]:
@@ -117,10 +143,12 @@ class EnvWrapper(ABC, gym.Env):
         if self.enable_gui:
             self.env.render()
 
-        obs, reward, terminated, trucated, info = self.env.step(action)
+        obs, _, terminated, trucated, info = self.env.step(action)
 
-        if self.auto_reset_goal and self.reached():
-            self.reset_random_goal()
+        reward = self.reward_fn()
+
+        # this makes the value function simpler as it avoids the randomness introduced by the auto reset goal
+        terminated = self.terminate_on_goal and self.reached()
 
         return obs, reward, terminated, trucated, info
 
@@ -128,15 +156,22 @@ class EnvWrapper(ABC, gym.Env):
         """
         Reset the environment, the return is the observation and reset info
         """
-        self.env.reset()
+        if self._first_reset or not self.reached():
+            # Only reset the robot if it has not reached the goal, this saves lots of simulation time.
+            # Calling reset when the robot does not not meet the goal means the time limit is reached.
+            # One corner case is that the time limit is reached while the robot also reaches the goal.
+            # In this case, we also do not reset the robot.
+            # However, the first reset is gurrenteed to be called when the environment is created.
+            self.env.reset()
+            self.set_pos(self.init_space.sample())
 
         if init_pos is not None:
             self.set_pos(init_pos)
-        else:
-            self.set_pos(self.init_space.sample())
 
-        if self.auto_reset_goal:
-            self.reset_random_goal()
+        self.reset_random_goal()
+        self._prev_pos = self.get_pos()
+
+        self._first_reset = False
 
         return self.get_obs(), {}
 
@@ -285,8 +320,6 @@ class DoggoEnv(MujocoEnv):
 
 class DroneEnv(EnvWrapper):
     def build_env(self) -> gym.Env:
-        self._goal = None
-        self._prev_pos = None
         return BulletEnv(Drone(enable_gui=self.enable_gui))
 
     def get_pos(self) -> np.ndarray:
@@ -368,31 +401,19 @@ class DroneEnv(EnvWrapper):
         self._goal = goal
         self._prev_pos = None
 
-    def step(self, action: list | np.ndarray):
-        obs, reward, terminated, truncated, info = self.env.step(action)
 
-        # Calculate reward
-        if self._prev_pos is None:
-            self._prev_pos = self.get_pos()
-
-        if self._goal is None:
-            reward = 0
-        else:
-            reward = np.linalg.norm(self._goal - self._prev_pos) - np.linalg.norm(
-                self._goal - self.get_pos()
-            )
-
-        return obs, reward, terminated, truncated, info
-
-
-def get_env(robot_name: str, enable_gui: bool = False, auto_reset: bool = False):
+def get_env(
+    robot_name: str,
+    enable_gui: bool = False,
+    terminate_on_goal: bool = False,
+):
     if robot_name == "drone":
-        return DroneEnv(enable_gui, auto_reset)
+        return DroneEnv(enable_gui, terminate_on_goal)
     elif robot_name == "point":
-        return PointEnv(enable_gui, auto_reset)
+        return PointEnv(enable_gui, terminate_on_goal)
     elif robot_name == "car":
-        return CarEnv(enable_gui, auto_reset)
+        return CarEnv(enable_gui, terminate_on_goal)
     elif robot_name == "doggo":
-        return DoggoEnv(enable_gui, auto_reset)
+        return DoggoEnv(enable_gui, terminate_on_goal)
     else:
         raise ValueError(f"Env {robot_name} not found")

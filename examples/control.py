@@ -6,7 +6,7 @@ from mobrob import get_env, load_policy
 
 
 def simulate(env_name: str, policy_name: str):
-    env = get_env(env_name, enable_gui=True, auto_reset=True)
+    env = get_env(env_name, enable_gui=True, terminate_on_goal=True)
     policy = load_policy(env_name, policy_name)
 
     rewards = []
@@ -16,7 +16,11 @@ def simulate(env_name: str, policy_name: str):
         obs, _ = env.reset()
         for _ in range(1000):
             action, _ = policy.predict(obs, deterministic=True)
-            obs, r, _, _, _ = env.step(action)
+            obs, r, terminated, _, _ = env.step(action)
+
+            if terminated:
+                obs, _ = env.reset()
+
             cum_reward += r
             env.render()
         rewards.append(cum_reward)
