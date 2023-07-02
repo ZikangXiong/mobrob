@@ -13,10 +13,10 @@ ppo_kwargs:
   batch_size: 1000
   n_epochs: 20
   ent_coef: 0.05
-  gae_lambda: 0.5
+  gae_lambda: 0.95
   clip_range: 0.2
   verbose: 1
   device: cpu
 
 # total simulation steps
-total_timesteps: 8_000_000
+total_timesteps: 16_000_000
