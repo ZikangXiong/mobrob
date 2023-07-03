@@ -1,0 +1,9 @@
+
+# This obj file contains concave shapes. May not open correctly outside of Issac Gym
+v 13.0 7.0 0.0001
+v 14.0 7.0 0.0001
+v 14.0 6.0 0.0001
+v 13.0 6.0 0.0001
+
+
+f 4 3 2 1

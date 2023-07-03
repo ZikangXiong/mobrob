@@ -2,11 +2,11 @@ from xml.etree import ElementTree
 
 import numpy as np
 import pybullet as p
-import pybullet_data
 from scipy.optimize import nnls
 
-from mobrob.envs.pybullet_robots.base import RobotBase, WorldBase
+from mobrob.envs.pybullet_robots.base import RobotBase
 from mobrob.envs.pybullet_robots.robots import ROBOT_ASSETS_PATH
+from mobrob.envs.pybullet_robots.worlds.drone import World
 
 
 class DronePIDController:
@@ -19,6 +19,21 @@ class DronePIDController:
         self.drone = drone
 
         # Default PID coefficients
+        self._force_p_coef_mean = np.array([0.1, 0.1, 0.2])
+        self._force_i_coef_mean = np.array([0.0001, 0.0001, 0.0001])
+        self._force_d_coef_mean = np.array([0.3, 0.3, 0.4])
+        self._torque_p_coef_mean = np.array([0.3, 0.3, 0.05])
+        self._torque_i_coef_mean = np.array([0.0001, 0.0001, 0.0001])
+        self._torque_d_coef_mean = np.array([0.3, 0.3, 0.5])
+
+        tune_fac = 0.3
+        self._force_p_coef_r = np.array([0.1, 0.1, 0.2]) * tune_fac
+        self._force_i_coef_r = np.array([0.0001, 0.0001, 0.0001]) * tune_fac
+        self._force_d_coef_r = np.array([0.3, 0.3, 0.4]) * tune_fac
+        self._torque_p_coef_r = np.array([0.3, 0.3, 0.05]) * tune_fac
+        self._torque_i_coef_r = np.array([0.0001, 0.0001, 0.0001]) * tune_fac
+        self._torque_d_coef_r = np.array([0.3, 0.3, 0.5]) * tune_fac
+
         self._force_p_coef = np.array([0.1, 0.1, 0.2])
         self._force_i_coef = np.array([0.0001, 0.0001, 0.0001])
         self._force_d_coef = np.array([0.3, 0.3, 0.4])
@@ -157,23 +172,25 @@ class DronePIDController:
         self._torque_i_coef = i_coef
         self._torque_d_coef = d_coef
 
+    def finetune_force_pid_coef(
+        self, p_coef_der: np.ndarray, i_coef_der: np.ndarray, d_coef_der: np.ndarray
+    ):
+        self._force_p_coef = self._force_p_coef_mean + p_coef_der * self._force_p_coef_r
+        self._force_i_coef = self._force_i_coef_mean + i_coef_der * self._force_i_coef_r
+        self._force_d_coef = self._force_d_coef_mean + d_coef_der * self._force_d_coef_r
 
-class World(WorldBase):
-    def _init_param(self):
-        self.g = 9.8
-        self.timestep = 1 / 50
-
-    def _build_world(self):
-        p.setAdditionalSearchPath(
-            pybullet_data.getDataPath(), physicsClientId=self.client_id
+    def finetune_torque_pid_coef(
+        self, p_coef_der: np.ndarray, i_coef_der: np.ndarray, d_coef_der: np.ndarray
+    ):
+        self._torque_p_coef = (
+            self._torque_p_coef_mean + p_coef_der * self._torque_p_coef_r
         )
-        p.loadURDF("plane.urdf", physicsClientId=self.client_id)
-        p.setGravity(0, 0, -self.g, physicsClientId=self.client_id)
-        p.setTimeStep(self.timestep, physicsClientId=self.client_id)
-        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0, physicsClientId=self.client_id)
-
-    def reset(self):
-        pass
+        self._torque_i_coef = (
+            self._torque_i_coef_mean + i_coef_der * self._torque_i_coef_r
+        )
+        self._torque_d_coef = (
+            self._torque_d_coef_mean + d_coef_der * self._torque_d_coef_r
+        )
 
 
 class Drone(RobotBase):

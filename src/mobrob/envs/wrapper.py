@@ -363,14 +363,21 @@ class DroneEnv(EnvWrapper):
         )
 
     def get_obs(self) -> np.ndarray:
-        return self.env.get_obs()
+        obs = self.env.get_obs()
+        obs[0:3] = obs[0:3] - self.get_goal()
+
+        return obs
+
+    def _set_goal(self, goal: list | np.ndarray):
+        self._goal = goal
+        self._prev_pos = None
 
     def get_observation_space(self) -> gym.Space:
         high = np.array(
             [
                 # x, y, z
-                20.0,
-                20.0,
+                40.0,
+                40.0,
                 20.0,
                 # roll, pitch, yaw
                 np.pi,
@@ -390,9 +397,9 @@ class DroneEnv(EnvWrapper):
         low = np.array(
             [
                 # x, y, z
+                -40.0,
+                -40.0,
                 -20.0,
-                -20.0,
-                0.0,
                 # roll, pitch, yaw
                 -np.pi,
                 -np.pi,
@@ -411,9 +418,7 @@ class DroneEnv(EnvWrapper):
         return gym.spaces.Box(low=low, high=high, shape=(12,), dtype=np.float32)
 
     def get_action_space(self) -> gym.Space:
-        return gym.spaces.Box(
-            low=0, high=self.env.robot.max_rpm, shape=(4,), dtype=np.float32
-        )
+        return gym.spaces.Box(low=-1, high=1, shape=(18,), dtype=np.float32)
 
     def get_init_space(self) -> gym.Space:
         lb = np.array([-5, -5, 5], dtype=np.float32)
@@ -421,13 +426,26 @@ class DroneEnv(EnvWrapper):
         return gym.spaces.Box(low=lb, high=ub, dtype=np.float32)
 
     def get_goal_space(self) -> gym.Space:
-        lb = np.array([-20, -20, 20], dtype=np.float32)
-        ub = np.array([-20, -20, 0], dtype=np.float32)
+        lb = np.array([-20, -20, 0], dtype=np.float32)
+        ub = np.array([-20, -20, 20], dtype=np.float32)
         return gym.spaces.Box(low=lb, high=ub, dtype=np.float32)
 
-    def _set_goal(self, goal: list | np.ndarray):
-        self._goal = goal
-        self._prev_pos = None
+    def step(
+        self, action: list | np.ndarray
+    ) -> tuple[np.ndarray, float, bool, bool, dict]:
+        action = action.reshape((6, 3))
+        self.env.robot.controller.finetune_force_pid_coef(*action[:3])
+        self.env.robot.controller.finetune_torque_pid_coef(*action[3:])
+        action = self.env.robot.controller.control(self.get_goal())
+
+        return super().step(action)
+
+    def reward_fn(self) -> float:
+        super_reward = super().reward_fn()
+        if self.reached():
+            # drone moves fast, the reach composition should be larger
+            return super_reward + 10.0
+        return super_reward
 
 
 def get_env(

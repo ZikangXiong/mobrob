@@ -1,0 +1,13 @@
+material Graph{
+    technique
+    {
+        pass
+        {
+            texture_unit
+            {
+                texture graph.png
+                scale 1 1
+            }
+        }
+    }
+}

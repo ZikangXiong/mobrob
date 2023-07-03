@@ -1,3 +1,4 @@
+import random
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from typing import List, Union
@@ -89,6 +90,11 @@ class BulletEnv:
 
     def get_obs(self):
         return self.robot.get_obs()
+
+    def seed(self, seed=None):
+        np.random.seed(seed)
+        random.seed(seed)
+        p.setPhysicsEngineParameter(deterministicOverlappingPairs=1)
 
     def step(self, cmd: Union[np.ndarray, List[np.ndarray]]):
         self.robot.ctrl(cmd)

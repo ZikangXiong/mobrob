@@ -13,14 +13,14 @@ ppo_kwargs:
   batch_size: 100
   n_epochs: 5
   ent_coef: 0.01
-  gae_lambda: 0.5
+  gae_lambda: 0.95
   clip_range: 0.2
   verbose: 1
-  gamma: 0.999
+  gamma: 0.99
   policy_kwargs: 
     net_arch: 
-      pi: [16, 16]
-      vf: [16, 16]
+      pi: [64, 64]
+      vf: [64, 64]
   device: cpu
 
 # total simulation steps

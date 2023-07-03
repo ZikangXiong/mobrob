@@ -1,7 +1,7 @@
 # environment parameters
 env_name: drone
 time_limit: 1000
-n_envs: 4
+n_envs: 16
 vec_env_type: subproc
 enable_gui: False
 seed: 0
@@ -9,10 +9,10 @@ seed: 0
 # parameters of stable-baselines3 PPO algorithm
 ppo_kwargs: 
   policy: MlpPolicy
-  n_steps: 4000
+  n_steps: 1000
   batch_size: 100
   verbose: 1
   device: cpu
 
 # total simulation steps
-total_timesteps: 50_000_000
+total_timesteps: 4_000_000
