@@ -9,12 +9,12 @@ from mobrob.utils import suppress_stdout
 
 class Turtlebot3(RobotBase):
     def __init__(
-            self,
-            ray_length: float = 1.0,
-            n_rays: int = 36,
-            raycast_height_offset: float = 0.15,
-            enable_gui: bool = False,
-            plot_ray: bool = False,
+        self,
+        ray_length: float = 1.0,
+        n_rays: int = 36,
+        raycast_height_offset: float = 0.15,
+        enable_gui: bool = False,
+        plot_ray: bool = False,
     ):
         self.ray_length = ray_length
         self.n_rays = n_rays
@@ -26,6 +26,32 @@ class Turtlebot3(RobotBase):
 
         self.ray_ids = []
         self.prop_gains = self.prop_gain_means
+
+    def _init_param(self):
+        # clock-wise ray angles
+        increment = 2 * np.pi / self.n_rays
+        self.ray_angles = np.array(
+            [np.pi / 2 - increment * i for i in range(self.n_rays)]
+        )
+        self.default_pos, self.default_ori = p.getBasePositionAndOrientation(
+            self.robot_id, physicsClientId=self.client_id
+        )
+
+        self.max_linear_vel = 0.26
+        self.max_angular_vel = 1.82
+        self.max_rpm = 100.0
+        self.velocity_gain = 0.223
+        self.force = 1
+
+        # for twist control
+        self.twist_l = 0.21  # meters
+        self.twist_r = 0.032  # meters
+
+        # for prop control
+        self.prop_gain_means = np.array([1.0, 0.2])
+        self.prop_gain_radius = np.array(
+            [1.5, 0.5]
+        )  # give the ability to go in reverse direction
 
     def set_pos_and_ori(self, pos: np.ndarray = None, ori: np.ndarray = None):
         pos = pos if pos is not None else self.default_pos
@@ -76,7 +102,7 @@ class Turtlebot3(RobotBase):
         # calculate wheel velocities from target linear and angular
         left = (linear_vel / self.twist_r) + (angular_vel * self.twist_l / self.twist_r)
         right = (linear_vel / self.twist_r) - (
-                angular_vel * self.twist_l / self.twist_r
+            angular_vel * self.twist_l / self.twist_r
         )
 
         return self.apply_action(np.array([left, right]))
@@ -100,7 +126,9 @@ class Turtlebot3(RobotBase):
         return np.concatenate([state_flatten, ray_obs])
 
     def get_pos(self) -> np.ndarray:
-        return np.array(p.getBasePositionAndOrientation(self.robot_id, self.client_id)[0][:2])
+        return np.array(
+            p.getBasePositionAndOrientation(self.robot_id, self.client_id)[0][:2]
+        )
 
     def _load_robot(self) -> int:
         with suppress_stdout():
@@ -208,32 +236,6 @@ class Turtlebot3(RobotBase):
         twist_cmd = twist_cmd.clip(cmd_low, cmd_high)
 
         return twist_cmd
-
-    def _init_param(self):
-        # clock-wise ray angles
-        increment = 2 * np.pi / self.n_rays
-        self.ray_angles = np.array(
-            [np.pi / 2 - increment * i for i in range(self.n_rays)]
-        )
-        self.default_pos, self.default_ori = p.getBasePositionAndOrientation(
-            self.robot_id, physicsClientId=self.client_id
-        )
-
-        self.max_linear_vel = 0.26
-        self.max_angular_vel = 1.82
-        self.max_rpm = 100.0
-        self.velocity_gain = 0.223
-        self.force = 1
-
-        # for twist control
-        self.twist_l = 0.21  # meters
-        self.twist_r = 0.032  # meters
-
-        # for prop control
-        self.prop_gain_means = np.array([1.0, 0.2])
-        self.prop_gain_radius = np.array(
-            [1.5, 0.5]
-        )  # give the ability to go in reverse direction
 
     def reset(self, init_pos: np.ndarray = None):
         if init_pos is not None:

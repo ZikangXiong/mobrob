@@ -13,9 +13,9 @@ from mobrob.envs.pybullet_robots.robots.turtlebot3 import Turtlebot3
 
 class EnvWrapper(ABC, gym.Env):
     def __init__(
-            self,
-            enable_gui: bool = False,
-            terminate_on_goal: bool = False,
+        self,
+        enable_gui: bool = False,
+        terminate_on_goal: bool = False,
     ):
         """
         Gym environment wrapper for robots
@@ -42,7 +42,7 @@ class EnvWrapper(ABC, gym.Env):
 
         # seed the spaces
         self.init_space.seed(seed)
-        self.goal_space.seed(seed)
+        self.goal_space.seed(seed + 1)  # avoid init on goal
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
 
@@ -148,7 +148,7 @@ class EnvWrapper(ABC, gym.Env):
         return reward
 
     def step(
-            self, action: list | np.ndarray
+        self, action: list | np.ndarray
     ) -> tuple[np.ndarray, float, bool, bool, dict]:
         """
         Step the environment by applying the action to the robot,
@@ -166,7 +166,9 @@ class EnvWrapper(ABC, gym.Env):
 
         return obs, reward, terminated, trucated, info
 
-    def reset(self, init_pos: list | np.ndarray = None, *args, **kwargs) -> tuple[np.ndarray, dict]:
+    def reset(
+        self, init_pos: list | np.ndarray = None, *args, **kwargs
+    ) -> tuple[np.ndarray, dict]:
         """
         Reset the environment, the return is the observation and reset info
         """
@@ -263,12 +265,12 @@ class MujocoGoalEnv(EnvWrapper, ABC):
         return self.env.obs()
 
     def add_wp_marker(
-            self,
-            pos: list | np.ndarray,
-            size: float,
-            color=(0, 1, 1, 0.5),
-            alpha=0.5,
-            label: str = "",
+        self,
+        pos: list | np.ndarray,
+        size: float,
+        color=(0, 1, 1, 0.5),
+        alpha=0.5,
+        label: str = "",
     ):
         self.env.add_render_callback(
             lambda: self.env.render_sphere(
@@ -309,7 +311,7 @@ class CarEnv(MujocoGoalEnv):
         indx = self.env.sim.model.get_joint_qpos_addr("robot")
         sim_state = self.env.sim.get_state()
 
-        sim_state.qpos[indx[0]: indx[0] + 2] = pos
+        sim_state.qpos[indx[0] : indx[0] + 2] = pos
         self.env.sim.set_state(sim_state)
         self.env.sim.forward()
 
@@ -344,7 +346,7 @@ class DoggoEnv(MujocoGoalEnv):
         indx = self.env.sim.model.get_joint_qpos_addr("robot")
         sim_state = self.env.sim.get_state()
 
-        sim_state.qpos[indx[0]: indx[0] + 2] = pos
+        sim_state.qpos[indx[0] : indx[0] + 2] = pos
         self.env.sim.set_state(sim_state)
         self.env.sim.forward()
 
@@ -368,18 +370,23 @@ class BulletGoalEnv(EnvWrapper, ABC):
             if len(goal) == 2:
                 goal = np.r_[goal, 0]
             if self.goal_shape_id is None:
-                self.goal_shape_id = p.createVisualShape(shapeType=p.GEOM_SPHERE,
-                                                         radius=self.reach_radius,
-                                                         rgbaColor=[0, 1, 0, 0.5],
-                                                         specularColor=[0.4, .4, 0],
-                                                         physicsClientId=self.env.client_id)
-                self.goal_id = p.createMultiBody(baseVisualShapeIndex=self.goal_shape_id,
-                                                 basePosition=goal,
-                                                 useMaximalCoordinates=True,
-                                                 physicsClientId=self.env.client_id)
+                self.goal_shape_id = p.createVisualShape(
+                    shapeType=p.GEOM_SPHERE,
+                    radius=self.reach_radius,
+                    rgbaColor=[0, 1, 0, 0.5],
+                    specularColor=[0.4, 0.4, 0],
+                    physicsClientId=self.env.client_id,
+                )
+                self.goal_id = p.createMultiBody(
+                    baseVisualShapeIndex=self.goal_shape_id,
+                    basePosition=goal,
+                    useMaximalCoordinates=True,
+                    physicsClientId=self.env.client_id,
+                )
             else:
-                p.resetBasePositionAndOrientation(self.goal_id, goal, [0, 0, 0, 1],
-                                                  physicsClientId=self.env.client_id)
+                p.resetBasePositionAndOrientation(
+                    self.goal_id, goal, [0, 0, 0, 1], physicsClientId=self.env.client_id
+                )
 
 
 class DroneEnv(BulletGoalEnv):
@@ -463,7 +470,7 @@ class DroneEnv(BulletGoalEnv):
         return gym.spaces.Box(low=lb, high=ub, dtype=np.float32)
 
     def step(
-            self, action: list | np.ndarray
+        self, action: list | np.ndarray
     ) -> tuple[np.ndarray, float, bool, bool, dict]:
         action = action.reshape((6, 3))
         self.env.robot.controller.finetune_force_pid_coef(*action[:3])
@@ -481,7 +488,6 @@ class DroneEnv(BulletGoalEnv):
 
 
 class Turtlebot3Env(BulletGoalEnv):
-
     def build_env(self) -> Engine | BulletEnv:
         return BulletEnv(Turtlebot3(enable_gui=self.enable_gui))
 
@@ -498,12 +504,12 @@ class Turtlebot3Env(BulletGoalEnv):
         return obs
 
     def get_observation_space(self) -> gym.Space:
-        upper_x, upper_y, upper_sin_cos = 1., 1., 1.
+        upper_x, upper_y, upper_sin_cos = 1.0, 1.0, 1.0
         ray_length = self.env.robot.ray_length
         upper_lin_vel = self.env.robot.max_linear_vel
         upper_angle_vel = self.env.robot.max_angular_vel
 
-        max_dist = (upper_x ** 2 + upper_y ** 2) ** 0.5
+        max_dist = (upper_x**2 + upper_y**2) ** 0.5
         upper_obs = [upper_sin_cos, upper_sin_cos, max_dist, max_dist]
         upper_obs += [upper_lin_vel, upper_lin_vel, upper_angle_vel]
         upper_obs += [ray_length] * self.env.robot.n_rays
@@ -517,13 +523,13 @@ class Turtlebot3Env(BulletGoalEnv):
         return gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
 
     def get_init_space(self) -> gym.Space:
-        return gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
+        return gym.spaces.Box(low=-0.8, high=0.8, shape=(2,), dtype=np.float32)
 
     def get_goal_space(self) -> gym.Space:
-        return gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
+        return gym.spaces.Box(low=-0.8, high=0.8, shape=(2,), dtype=np.float32)
 
     def step(
-            self, action: list | np.ndarray
+        self, action: list | np.ndarray
     ) -> tuple[np.ndarray, float, bool, bool, dict]:
         gain_changes = np.array(action, dtype=np.float32)
         twist_cmd = self.env.robot.prop_ctrl(self.get_goal(), gain_changes)
@@ -532,10 +538,10 @@ class Turtlebot3Env(BulletGoalEnv):
 
 
 def get_env(
-        env_name: str,
-        enable_gui: bool = False,
-        terminate_on_goal: bool = False,
-        time_limit: int | None = None,
+    env_name: str,
+    enable_gui: bool = False,
+    terminate_on_goal: bool = False,
+    time_limit: int | None = None,
 ):
     if env_name == "drone":
         env = DroneEnv(enable_gui, terminate_on_goal)

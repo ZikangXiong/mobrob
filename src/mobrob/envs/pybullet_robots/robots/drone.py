@@ -70,7 +70,7 @@ class DronePIDController:
         return rpm
 
     def _compute_target_force(
-            self, goal: np.ndarray, cur_pos: np.ndarray
+        self, goal: np.ndarray, cur_pos: np.ndarray
     ) -> np.ndarray:
         pos_e = goal - np.array(cur_pos).reshape(3)
         d_pos_e = (pos_e - self.last_pos_e) / self.drone.world.timestep
@@ -78,16 +78,16 @@ class DronePIDController:
         self.integral_pos_e = self.integral_pos_e + pos_e * self.drone.world.timestep
 
         target_force = (
-                np.array([0, 0, self.drone.m * self.drone.world.g])
-                + np.multiply(self._force_p_coef, pos_e)
-                + np.multiply(self._force_i_coef, self.integral_pos_e)
-                + np.multiply(self._force_d_coef, d_pos_e)
+            np.array([0, 0, self.drone.m * self.drone.world.g])
+            + np.multiply(self._force_p_coef, pos_e)
+            + np.multiply(self._force_i_coef, self.integral_pos_e)
+            + np.multiply(self._force_d_coef, d_pos_e)
         )
 
         return target_force
 
     def _compute_target_thrust(
-            self, target_force: np.ndarray, cur_ori: np.ndarray
+        self, target_force: np.ndarray, cur_ori: np.ndarray
     ) -> float:
         cur_rotation = np.array(p.getMatrixFromQuaternion(cur_ori)).reshape(3, 3)
         target_thrust = np.dot(cur_rotation, target_force)
@@ -117,7 +117,7 @@ class DronePIDController:
         return target_rpy
 
     def _compute_target_torque(
-            self, target_rpy: np.ndarray, cur_ori: np.ndarray
+        self, target_rpy: np.ndarray, cur_ori: np.ndarray
     ) -> np.ndarray:
         cur_rpy = p.getEulerFromQuaternion(cur_ori)
         rpy_e = target_rpy - np.array(cur_rpy)
@@ -131,9 +131,9 @@ class DronePIDController:
         self.integral_rpy_e = self.integral_rpy_e + rpy_e * self.drone.world.timestep
 
         target_torque = (
-                np.multiply(self._torque_p_coef, rpy_e)
-                + np.multiply(self._torque_i_coef, self.integral_rpy_e)
-                + np.multiply(self._torque_d_coef, d_rpy_e)
+            np.multiply(self._torque_p_coef, rpy_e)
+            + np.multiply(self._torque_i_coef, self.integral_rpy_e)
+            + np.multiply(self._torque_d_coef, d_rpy_e)
         )
 
         max_xy_torque = self.drone.max_xy_torque
@@ -146,12 +146,12 @@ class DronePIDController:
         return target_torque
 
     def _compute_rpm(
-            self, target_thrust: float, target_torque: np.ndarray
+        self, target_thrust: float, target_torque: np.ndarray
     ) -> np.ndarray:
         x = np.concatenate([[target_thrust], target_torque])
         bx = self.drone.B * x
         power_rpm = self.drone.A_inv @ bx
-        power_rpm = power_rpm.clip(0, self.drone.max_rpm ** 2)
+        power_rpm = power_rpm.clip(0, self.drone.max_rpm**2)
 
         if np.min(power_rpm) < 0:
             power_rpm, res = nnls(self.drone.A, bx, maxiter=20)
@@ -159,37 +159,37 @@ class DronePIDController:
         return np.sqrt(power_rpm)
 
     def set_force_pid_coef(
-            self, p_coef: np.ndarray, i_coef: np.ndarray, d_coef: np.ndarray
+        self, p_coef: np.ndarray, i_coef: np.ndarray, d_coef: np.ndarray
     ):
         self._force_p_coef = p_coef
         self._force_i_coef = i_coef
         self._force_d_coef = d_coef
 
     def set_torque_pid_coef(
-            self, p_coef: np.ndarray, i_coef: np.ndarray, d_coef: np.ndarray
+        self, p_coef: np.ndarray, i_coef: np.ndarray, d_coef: np.ndarray
     ):
         self._torque_p_coef = p_coef
         self._torque_i_coef = i_coef
         self._torque_d_coef = d_coef
 
     def finetune_force_pid_coef(
-            self, p_coef_der: np.ndarray, i_coef_der: np.ndarray, d_coef_der: np.ndarray
+        self, p_coef_der: np.ndarray, i_coef_der: np.ndarray, d_coef_der: np.ndarray
     ):
         self._force_p_coef = self._force_p_coef_mean + p_coef_der * self._force_p_coef_r
         self._force_i_coef = self._force_i_coef_mean + i_coef_der * self._force_i_coef_r
         self._force_d_coef = self._force_d_coef_mean + d_coef_der * self._force_d_coef_r
 
     def finetune_torque_pid_coef(
-            self, p_coef_der: np.ndarray, i_coef_der: np.ndarray, d_coef_der: np.ndarray
+        self, p_coef_der: np.ndarray, i_coef_der: np.ndarray, d_coef_der: np.ndarray
     ):
         self._torque_p_coef = (
-                self._torque_p_coef_mean + p_coef_der * self._torque_p_coef_r
+            self._torque_p_coef_mean + p_coef_der * self._torque_p_coef_r
         )
         self._torque_i_coef = (
-                self._torque_i_coef_mean + i_coef_der * self._torque_i_coef_r
+            self._torque_i_coef_mean + i_coef_der * self._torque_i_coef_r
         )
         self._torque_d_coef = (
-                self._torque_d_coef_mean + d_coef_der * self._torque_d_coef_r
+            self._torque_d_coef_mean + d_coef_der * self._torque_d_coef_r
         )
 
 
@@ -266,13 +266,13 @@ class Drone(RobotBase):
         self.hover_rpm = np.sqrt(gravity / (4 * self.kf))
         self.max_rpm = np.sqrt((self.thrust2weight * gravity) / (4 * self.kf))
 
-        self.max_thrust = 4 * self.kf * self.max_rpm ** 2
+        self.max_thrust = 4 * self.kf * self.max_rpm**2
         if self.drone_name == "cf2x":
-            self.max_xy_torque = (2 * self.l * self.kf * self.max_rpm ** 2) / np.sqrt(2)
+            self.max_xy_torque = (2 * self.l * self.kf * self.max_rpm**2) / np.sqrt(2)
         elif self.drone_name in ["cf2p", "hb"]:
-            self.max_xy_torque = self.l * self.kf * self.max_rpm ** 2
+            self.max_xy_torque = self.l * self.kf * self.max_rpm**2
 
-        self.max_z_torque = 2 * self.km * self.max_rpm ** 2
+        self.max_z_torque = 2 * self.km * self.max_rpm**2
 
         # A and B are used for building the equation for computing control input
         self.A = np.array([[1, 1, 1, 1], [0, 1, 0, -1], [-1, 0, 1, 0], [-1, 1, -1, 1]])
@@ -286,8 +286,8 @@ class Drone(RobotBase):
         Apply control cmd but do not step simulation
         :param cmd: rotation per minute of 4 motors
         """
-        forces = np.array(cmd ** 2) * self.kf
-        torques = np.array(cmd ** 2) * self.km
+        forces = np.array(cmd**2) * self.kf
+        torques = np.array(cmd**2) * self.km
         z_torque = -torques[0] + torques[1] - torques[2] + torques[3]
         for i in range(4):
             p.applyExternalForce(

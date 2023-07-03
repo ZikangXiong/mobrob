@@ -6,11 +6,28 @@ import pybullet as p
 
 ROBOT_ASSETS_PATH = f"{dirname(abspath(__file__))}/assets"
 
-JointInfo = namedtuple('JointInfo',
-                       ['joint_index', 'joint_name', 'joint_type', 'q_index', 'u_index', 'flags',
-                        'joint_damping', 'joint_friction', 'joint_lower_limit', 'joint_upper_limit',
-                        'joint_max_force', 'joint_max_velocity', 'link_name', 'joint_axis',
-                        'parent_frame_pos', 'parent_frame_orn', 'parent_index'])
+JointInfo = namedtuple(
+    "JointInfo",
+    [
+        "joint_index",
+        "joint_name",
+        "joint_type",
+        "q_index",
+        "u_index",
+        "flags",
+        "joint_damping",
+        "joint_friction",
+        "joint_lower_limit",
+        "joint_upper_limit",
+        "joint_max_force",
+        "joint_max_velocity",
+        "link_name",
+        "joint_axis",
+        "parent_frame_pos",
+        "parent_frame_orn",
+        "parent_index",
+    ],
+)
 
 
 def get_joint_info(body, joint, client_id) -> JointInfo:
@@ -44,10 +61,9 @@ def reset_joint_pos(pos, robot_id: int, client_id: int):
     indx = 0
     for i in range(p.getNumJoints(robot_id, client_id)):
         if not is_fixed_joint(robot_id, i, client_id):
-            p.resetJointState(robot_id,
-                              jointIndex=i,
-                              targetValue=pos[indx],
-                              physicsClientId=client_id)
+            p.resetJointState(
+                robot_id, jointIndex=i, targetValue=pos[indx], physicsClientId=client_id
+            )
             indx += 1
 
 
