@@ -24,4 +24,4 @@ ppo_kwargs:
   device: cpu
 
 # total simulation steps
-total_timesteps: 20_000_000
+total_timesteps: 5_000_000
