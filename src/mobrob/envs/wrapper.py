@@ -466,7 +466,7 @@ class DroneEnv(BulletGoalEnv):
 
     def get_goal_space(self) -> gym.Space:
         lb = np.array([-5, -5, 0], dtype=np.float32)
-        ub = np.array([-5, -5, 5], dtype=np.float32)
+        ub = np.array([5, 5, 5], dtype=np.float32)
         return gym.spaces.Box(low=lb, high=ub, dtype=np.float32)
 
     def step(
