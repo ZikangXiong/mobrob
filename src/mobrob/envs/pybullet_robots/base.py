@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 from typing import List, Union
 
+import gymnasium as gym
 import numpy as np
 import pybullet as p
 
@@ -70,7 +71,7 @@ class RobotBase(ABC):
         pass
 
 
-class BulletEnv:
+class BulletEnv(gym.Env):
     def __init__(self, robot: RobotBase, camera_following: bool = False):
         self.world = robot.world
         self.robot = robot
@@ -84,7 +85,7 @@ class BulletEnv:
     def switch_render_mode(self):
         self._camera_following = not self._camera_following
 
-    def reset(self):
+    def reset(self, *args, **kwargs):
         self.world.reset()
         self.robot.reset()
 

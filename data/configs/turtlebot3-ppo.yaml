@@ -1,0 +1,21 @@
+# environment parameters
+env_name: turtlebot3
+time_limit: 1000
+n_envs: 4
+vec_env_type: subproc
+enable_gui: False
+seed: 0
+
+# parameters of stable-baselines3 PPO algorithm
+ppo_kwargs:
+  policy: MlpPolicy
+  n_steps: 4000
+  n_epochs: 10
+  ent_coef: 0.05
+  gae_lambda: 0.5
+  batch_size: 100
+  verbose: 1
+  device: cpu
+
+# total simulation steps
+total_timesteps: 1_000_000

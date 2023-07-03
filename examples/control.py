@@ -1,4 +1,5 @@
 import argparse
+import time
 
 import numpy as np
 
@@ -23,6 +24,10 @@ def simulate(env_name: str, policy_name: str):
 
             cum_reward += r
             env.render()
+
+            if env_name in ("drone", "turtlebot3"):
+                time.sleep(0.005)
+
         rewards.append(cum_reward)
 
     print(f"average reward: {np.mean(rewards)}")

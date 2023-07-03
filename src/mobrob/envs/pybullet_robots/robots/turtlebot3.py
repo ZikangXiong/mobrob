@@ -1,33 +1,28 @@
 import numpy as np
 import pybullet as p
 
-from mobrob.envs.pybullet_robots import ROBOT_ASSETS_PATH
 from mobrob.envs.pybullet_robots.base import RobotBase
+from mobrob.envs.pybullet_robots.utils import ROBOT_ASSETS_PATH
 from mobrob.envs.pybullet_robots.worlds.turtlebot3 import World
 from mobrob.utils import suppress_stdout
 
 
-class TurtleBot(RobotBase):
+class Turtlebot3(RobotBase):
     def __init__(
-        self,
-        ray_length: float = 1.0,
-        n_rays: int = 36,
-        raycast_height_offset: float = 0.15,
-        enable_gui: bool = False,
+            self,
+            ray_length: float = 1.0,
+            n_rays: int = 36,
+            raycast_height_offset: float = 0.15,
+            enable_gui: bool = False,
+            plot_ray: bool = False,
     ):
         self.ray_length = ray_length
         self.n_rays = n_rays
         self.raycast_height_offset = raycast_height_offset
         self.enable_gui = enable_gui
+        self.plot_ray = plot_ray
 
-        self.world = World(enable_gui=self.enable_gui)
-
-        self.simu_id = self.world.simu_id
-        self.gui = self.world.gui
-
-        self.robot_id = self._load_robot()
-
-        self._setup_cnst()
+        super(Turtlebot3, self).__init__(World(enable_gui=enable_gui))
 
         self.ray_ids = []
         self.prop_gains = self.prop_gain_means
@@ -35,8 +30,12 @@ class TurtleBot(RobotBase):
     def set_pos_and_ori(self, pos: np.ndarray = None, ori: np.ndarray = None):
         pos = pos if pos is not None else self.default_pos
         ori = ori if ori is not None else self.default_ori
+
+        if len(pos) == 2:
+            z = p.getBasePositionAndOrientation(self.robot_id, self.client_id)[0][2]
+            pos = np.r_[pos, z]
         p.resetBasePositionAndOrientation(
-            self.robot_id, pos, ori, physicsClientId=self.simu_id
+            self.robot_id, pos, ori, physicsClientId=self.client_id
         )
 
     def apply_action(self, action: np.ndarray) -> np.ndarray:
@@ -48,7 +47,7 @@ class TurtleBot(RobotBase):
             1,
             p.VELOCITY_CONTROL,
             targetVelocity=action[0],
-            physicsClientId=self.simu_id,
+            physicsClientId=self.client_id,
             force=self.force,
             velocityGain=self.velocity_gain,
         )
@@ -57,18 +56,18 @@ class TurtleBot(RobotBase):
             2,
             p.VELOCITY_CONTROL,
             targetVelocity=action[1],
-            physicsClientId=self.simu_id,
+            physicsClientId=self.client_id,
             force=self.force,
             velocityGain=self.velocity_gain,
         )
-        p.stepSimulation(self.simu_id)
+        p.stepSimulation(self.client_id)
 
         obs = self.get_obs()
 
         return obs
 
     def zero_velocity(self):
-        p.resetBaseVelocity(self.robot_id, self.simu_id)
+        p.resetBaseVelocity(self.robot_id, self.client_id)
 
     def apply_action_twist(self, action: np.ndarray) -> np.ndarray:
         upper_action = np.r_[self.max_linear_vel, self.max_angular_vel]
@@ -77,7 +76,7 @@ class TurtleBot(RobotBase):
         # calculate wheel velocities from target linear and angular
         left = (linear_vel / self.twist_r) + (angular_vel * self.twist_l / self.twist_r)
         right = (linear_vel / self.twist_r) - (
-            angular_vel * self.twist_l / self.twist_r
+                angular_vel * self.twist_l / self.twist_r
         )
 
         return self.apply_action(np.array([left, right]))
@@ -100,18 +99,21 @@ class TurtleBot(RobotBase):
 
         return np.concatenate([state_flatten, ray_obs])
 
+    def get_pos(self) -> np.ndarray:
+        return np.array(p.getBasePositionAndOrientation(self.robot_id, self.client_id)[0][:2])
+
     def _load_robot(self) -> int:
         with suppress_stdout():
             robot_id = p.loadURDF(
                 f"{ROBOT_ASSETS_PATH}/turtlebot3/turtlebot3_waffle.urdf",
                 [0, 0, 0],
-                physicsClientId=self.simu_id,
+                physicsClientId=self.client_id,
             )
         return robot_id
 
     def _get_state_dict(self) -> dict:
         states = p.getLinkState(
-            self.robot_id, 0, computeLinkVelocity=1, physicsClientId=self.simu_id
+            self.robot_id, 0, computeLinkVelocity=1, physicsClientId=self.client_id
         )
         current_local_frame_pos = states[0]
         current_local_frame_orient = p.getEulerFromQuaternion(states[1])
@@ -126,9 +128,9 @@ class TurtleBot(RobotBase):
 
     def _get_ray_obs(self) -> np.ndarray:
         # robot state
-        robot_state = p.getLinkState(self.robot_id, 0, physicsClientId=self.simu_id)
+        robot_state = p.getLinkState(self.robot_id, 0, physicsClientId=self.client_id)
         robot_angle = p.getEulerFromQuaternion(
-            robot_state[1], physicsClientId=self.simu_id
+            robot_state[1], physicsClientId=self.client_id
         )[2]
         robot_position = np.array(robot_state[0])
 
@@ -142,7 +144,7 @@ class TurtleBot(RobotBase):
         )
         rays = raycast_pos + relative_rays
         results = p.rayTestBatch(
-            [raycast_pos] * self.n_rays, rays, physicsClientId=self.simu_id
+            [raycast_pos] * self.n_rays, rays, physicsClientId=self.client_id
         )
 
         # check lidar results
@@ -160,14 +162,14 @@ class TurtleBot(RobotBase):
             obs.append(dist)
 
             # visualize lidar
-            if self.gui:
+            if self.enable_gui and self.plot_ray:
                 if len(self.ray_ids) == self.n_rays:
                     p.addUserDebugLine(
                         raycast_pos,
                         hit_position,
                         color,
                         replaceItemUniqueId=self.ray_ids[i],
-                        physicsClientId=self.simu_id,
+                        physicsClientId=self.client_id,
                     )
                 else:
                     self.ray_ids.append(
@@ -175,7 +177,7 @@ class TurtleBot(RobotBase):
                             robot_position,
                             hit_position,
                             color,
-                            physicsClientId=self.simu_id,
+                            physicsClientId=self.client_id,
                         )
                     )
 
@@ -205,7 +207,7 @@ class TurtleBot(RobotBase):
         cmd_low = -cmd_high
         twist_cmd = twist_cmd.clip(cmd_low, cmd_high)
 
-        return self.apply_action_twist(twist_cmd)
+        return twist_cmd
 
     def _init_param(self):
         # clock-wise ray angles
@@ -214,7 +216,7 @@ class TurtleBot(RobotBase):
             [np.pi / 2 - increment * i for i in range(self.n_rays)]
         )
         self.default_pos, self.default_ori = p.getBasePositionAndOrientation(
-            self.robot_id, physicsClientId=self.simu_id
+            self.robot_id, physicsClientId=self.client_id
         )
 
         self.max_linear_vel = 0.26
@@ -242,5 +244,7 @@ class TurtleBot(RobotBase):
                 self.client_id,
             )
 
+        self.zero_velocity()
+
     def ctrl(self, cmd: np.ndarray):
-        self.apply_action(cmd)
+        self.apply_action_twist(cmd)

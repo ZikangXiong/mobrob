@@ -8,13 +8,14 @@ from gymnasium.wrappers import TimeLimit
 from mobrob.envs.mujoco_robots.robots.engine import Engine, quat2zalign
 from mobrob.envs.pybullet_robots.base import BulletEnv
 from mobrob.envs.pybullet_robots.robots.drone import Drone
+from mobrob.envs.pybullet_robots.robots.turtlebot3 import Turtlebot3
 
 
 class EnvWrapper(ABC, gym.Env):
     def __init__(
-        self,
-        enable_gui: bool = False,
-        terminate_on_goal: bool = False,
+            self,
+            enable_gui: bool = False,
+            terminate_on_goal: bool = False,
     ):
         """
         Gym environment wrapper for robots
@@ -133,7 +134,7 @@ class EnvWrapper(ABC, gym.Env):
         Overwrite this function if you want to use a different reward function
         """
         current_pos = self.get_pos()
-        if self._goal is None:
+        if self._goal is None or self._prev_pos is None:
             reward = 0
         else:
             reward = np.linalg.norm(self._goal - self._prev_pos) - np.linalg.norm(
@@ -147,7 +148,7 @@ class EnvWrapper(ABC, gym.Env):
         return reward
 
     def step(
-        self, action: list | np.ndarray
+            self, action: list | np.ndarray
     ) -> tuple[np.ndarray, float, bool, bool, dict]:
         """
         Step the environment by applying the action to the robot,
@@ -165,7 +166,7 @@ class EnvWrapper(ABC, gym.Env):
 
         return obs, reward, terminated, trucated, info
 
-    def reset(self, init_pos: list | np.ndarray = None, *args, **kwargs) -> np.ndarray:
+    def reset(self, init_pos: list | np.ndarray = None, *args, **kwargs) -> tuple[np.ndarray, dict]:
         """
         Reset the environment, the return is the observation and reset info
         """
@@ -179,10 +180,12 @@ class EnvWrapper(ABC, gym.Env):
 
         if self._first_reset or not self.reached():
             # Only reset the robot if it has not reached the goal, this saves lots of simulation time.
-            # Calling reset when the robot does not not meet the goal means the time limit is reached.
+            # During training, calling reset when the robot does not meet the goal means the time limit is reached.
+            # To avoid situations such as getting stuck in a corner, we do not reset the robot.
             # One corner case is that the time limit is reached while the robot also reaches the goal.
-            # In this case, we also do not reset the robot.
-            # However, the first reset is gurrenteed to be called when the environment is created.
+            # In this case, we do not reset the robot, because usually the robot is not stuck in a corner
+            # if it can reach the goal.
+            # The first reset is guaranteed to be called when the environment is created.
             self.env.reset()
             self.set_pos(self.init_space.sample())
 
@@ -215,7 +218,7 @@ class EnvWrapper(ABC, gym.Env):
         self.env.close()
 
 
-class MujocoEnv(EnvWrapper, ABC):
+class MujocoGoalEnv(EnvWrapper, ABC):
     BASE_SENSORS = ["accelerometer", "velocimeter", "gyro", "magnetometer"]
 
     @abstractmethod
@@ -260,12 +263,12 @@ class MujocoEnv(EnvWrapper, ABC):
         return self.env.obs()
 
     def add_wp_marker(
-        self,
-        pos: list | np.ndarray,
-        size: float,
-        color=(0, 1, 1, 0.5),
-        alpha=0.5,
-        label: str = "",
+            self,
+            pos: list | np.ndarray,
+            size: float,
+            color=(0, 1, 1, 0.5),
+            alpha=0.5,
+            label: str = "",
     ):
         self.env.add_render_callback(
             lambda: self.env.render_sphere(
@@ -274,7 +277,7 @@ class MujocoEnv(EnvWrapper, ABC):
         )
 
 
-class PointEnv(MujocoEnv):
+class PointEnv(MujocoGoalEnv):
     def get_robot_config(self) -> dict:
         return {
             "robot_base": f"xmls/point.xml",
@@ -290,7 +293,7 @@ class PointEnv(MujocoEnv):
         self.env.sim.forward()
 
 
-class CarEnv(MujocoEnv):
+class CarEnv(MujocoGoalEnv):
     def get_robot_config(self) -> dict:
         return {
             "robot_base": f"xmls/car.xml",
@@ -306,12 +309,12 @@ class CarEnv(MujocoEnv):
         indx = self.env.sim.model.get_joint_qpos_addr("robot")
         sim_state = self.env.sim.get_state()
 
-        sim_state.qpos[indx[0] : indx[0] + 2] = pos
+        sim_state.qpos[indx[0]: indx[0] + 2] = pos
         self.env.sim.set_state(sim_state)
         self.env.sim.forward()
 
 
-class DoggoEnv(MujocoEnv):
+class DoggoEnv(MujocoGoalEnv):
     def get_robot_config(self) -> dict:
         extra_sensor = [
             "touch_ankle_1a",
@@ -341,12 +344,45 @@ class DoggoEnv(MujocoEnv):
         indx = self.env.sim.model.get_joint_qpos_addr("robot")
         sim_state = self.env.sim.get_state()
 
-        sim_state.qpos[indx[0] : indx[0] + 2] = pos
+        sim_state.qpos[indx[0]: indx[0] + 2] = pos
         self.env.sim.set_state(sim_state)
         self.env.sim.forward()
 
 
-class DroneEnv(EnvWrapper):
+class BulletGoalEnv(EnvWrapper, ABC):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.goal_shape_id = None
+        self.goal_id = None
+        self.reach_radius = 0.3
+
+    def _set_goal(self, goal: list | np.ndarray):
+        self._prev_pos = None
+
+        if self.enable_gui:
+            self.render_goal(goal)
+
+    def render_goal(self, goal: np.ndarray):
+        if self.enable_gui:
+            if len(goal) == 2:
+                goal = np.r_[goal, 0]
+            if self.goal_shape_id is None:
+                self.goal_shape_id = p.createVisualShape(shapeType=p.GEOM_SPHERE,
+                                                         radius=self.reach_radius,
+                                                         rgbaColor=[0, 1, 0, 0.5],
+                                                         specularColor=[0.4, .4, 0],
+                                                         physicsClientId=self.env.client_id)
+                self.goal_id = p.createMultiBody(baseVisualShapeIndex=self.goal_shape_id,
+                                                 basePosition=goal,
+                                                 useMaximalCoordinates=True,
+                                                 physicsClientId=self.env.client_id)
+            else:
+                p.resetBasePositionAndOrientation(self.goal_id, goal, [0, 0, 0, 1],
+                                                  physicsClientId=self.env.client_id)
+
+
+class DroneEnv(BulletGoalEnv):
     def build_env(self) -> gym.Env:
         return BulletEnv(Drone(enable_gui=self.enable_gui))
 
@@ -368,17 +404,13 @@ class DroneEnv(EnvWrapper):
 
         return obs
 
-    def _set_goal(self, goal: list | np.ndarray):
-        self._goal = goal
-        self._prev_pos = None
-
     def get_observation_space(self) -> gym.Space:
         high = np.array(
             [
                 # x, y, z
-                40.0,
-                40.0,
-                20.0,
+                10.0,
+                10.0,
+                5.0,
                 # roll, pitch, yaw
                 np.pi,
                 np.pi,
@@ -397,9 +429,9 @@ class DroneEnv(EnvWrapper):
         low = np.array(
             [
                 # x, y, z
-                -40.0,
-                -40.0,
-                -20.0,
+                -10.0,
+                -10.0,
+                -50.0,
                 # roll, pitch, yaw
                 -np.pi,
                 -np.pi,
@@ -426,12 +458,12 @@ class DroneEnv(EnvWrapper):
         return gym.spaces.Box(low=lb, high=ub, dtype=np.float32)
 
     def get_goal_space(self) -> gym.Space:
-        lb = np.array([-20, -20, 0], dtype=np.float32)
-        ub = np.array([-20, -20, 20], dtype=np.float32)
+        lb = np.array([-5, -5, 0], dtype=np.float32)
+        ub = np.array([-5, -5, 5], dtype=np.float32)
         return gym.spaces.Box(low=lb, high=ub, dtype=np.float32)
 
     def step(
-        self, action: list | np.ndarray
+            self, action: list | np.ndarray
     ) -> tuple[np.ndarray, float, bool, bool, dict]:
         action = action.reshape((6, 3))
         self.env.robot.controller.finetune_force_pid_coef(*action[:3])
@@ -448,11 +480,62 @@ class DroneEnv(EnvWrapper):
         return super_reward
 
 
+class Turtlebot3Env(BulletGoalEnv):
+
+    def build_env(self) -> Engine | BulletEnv:
+        return BulletEnv(Turtlebot3(enable_gui=self.enable_gui))
+
+    def get_pos(self):
+        return self.env.robot.get_pos()
+
+    def set_pos(self, pos: list | np.ndarray):
+        self.env.robot.set_pos_and_ori(pos, None)
+
+    def get_obs(self) -> np.ndarray:
+        obs = self.env.get_obs()
+        obs[2:4] = obs[2:4] - self.get_goal()
+
+        return obs
+
+    def get_observation_space(self) -> gym.Space:
+        upper_x, upper_y, upper_sin_cos = 1., 1., 1.
+        ray_length = self.env.robot.ray_length
+        upper_lin_vel = self.env.robot.max_linear_vel
+        upper_angle_vel = self.env.robot.max_angular_vel
+
+        max_dist = (upper_x ** 2 + upper_y ** 2) ** 0.5
+        upper_obs = [upper_sin_cos, upper_sin_cos, max_dist, max_dist]
+        upper_obs += [upper_lin_vel, upper_lin_vel, upper_angle_vel]
+        upper_obs += [ray_length] * self.env.robot.n_rays
+
+        upper_obs = np.array(upper_obs, dtype=np.float32)
+        observation_space = gym.spaces.Box(low=-upper_obs, high=upper_obs)
+
+        return observation_space
+
+    def get_action_space(self) -> gym.Space:
+        return gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
+
+    def get_init_space(self) -> gym.Space:
+        return gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
+
+    def get_goal_space(self) -> gym.Space:
+        return gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
+
+    def step(
+            self, action: list | np.ndarray
+    ) -> tuple[np.ndarray, float, bool, bool, dict]:
+        gain_changes = np.array(action, dtype=np.float32)
+        twist_cmd = self.env.robot.prop_ctrl(self.get_goal(), gain_changes)
+
+        return super().step(twist_cmd)
+
+
 def get_env(
-    env_name: str,
-    enable_gui: bool = False,
-    terminate_on_goal: bool = False,
-    time_limit: int | None = None,
+        env_name: str,
+        enable_gui: bool = False,
+        terminate_on_goal: bool = False,
+        time_limit: int | None = None,
 ):
     if env_name == "drone":
         env = DroneEnv(enable_gui, terminate_on_goal)
@@ -462,6 +545,8 @@ def get_env(
         env = CarEnv(enable_gui, terminate_on_goal)
     elif env_name == "doggo":
         env = DoggoEnv(enable_gui, terminate_on_goal)
+    elif env_name == "turtlebot3":
+        env = Turtlebot3Env(enable_gui, terminate_on_goal)
     else:
         raise ValueError(f"Env {env_name} not found")
 

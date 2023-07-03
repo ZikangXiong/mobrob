@@ -1,5 +1,5 @@
 import pybullet as p
-from pybullet_data import pybullet_data
+import pybullet_data
 
 from mobrob.envs.pybullet_robots.base import WorldBase
 

@@ -1,8 +1,10 @@
-import os
 from collections import namedtuple
+from os.path import abspath, dirname
 
 import numpy as np
 import pybullet as p
+
+ROBOT_ASSETS_PATH = f"{dirname(abspath(__file__))}/assets"
 
 JointInfo = namedtuple('JointInfo',
                        ['joint_index', 'joint_name', 'joint_type', 'q_index', 'u_index', 'flags',
@@ -54,25 +56,6 @@ def half_angle(degree):
     degree = degree - n * 2 * np.pi
 
     return degree
-
-
-class video_recorder:
-    def __init__(self, client_id: int, store_path: str):
-        self.client_id = client_id
-        self.store_path = store_path
-        self.logging_unique_id = None
-
-    def __enter__(self):
-        if self.store_path is not None:
-            os.makedirs(f"{os.path.dirname(self.store_path)}", exist_ok=True)
-            self.logging_unique_id = p.startStateLogging(loggingType=p.STATE_LOGGING_VIDEO_MP4,
-                                                         fileName=self.store_path,
-                                                         physicsClientId=self.client_id)
-            return self.logging_unique_id
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.store_path is not None:
-            p.stopStateLogging(self.logging_unique_id)
 
 
 class no_render:
