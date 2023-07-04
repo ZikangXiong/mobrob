@@ -185,7 +185,7 @@ class EnvWrapper(ABC, gym.Env):
         if self._first_reset or not self.reached():
             # Only reset the robot if it has not reached the goal, this saves lots of simulation time.
             # During training, calling reset when the robot does not meet the goal means the time limit is reached.
-            # To avoid situations such as getting stuck in a corner, we do not reset the robot.
+            # To avoid situations such as getting stuck in a corner, we reset the robot when the time limit is reached.
             # One corner case is that the time limit is reached while the robot also reaches the goal.
             # In this case, we do not reset the robot, because usually the robot is not stuck in a corner
             # if it can reach the goal.
