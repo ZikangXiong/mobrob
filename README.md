@@ -1,69 +1,69 @@
-# Goal-Conditioned Reinforcement Learning Control for Mobile Robots
+# Mobile Robot Control via Goal-Conditioned Reinforcement Learning
 
-## Installation
+## Setup
+
+Install the package via pip:
 
 ```shell
 pip install git+https://github.com/ZikangXiong/mobrob
 ```
 
-The simulation partially depends on [mujoco-py](https://github.com/ZikangXiong/mobrob). Configure the environment according to the [official guide](https://github.com/openai/mujoco-py#synopsis). 
+This project partially relies on [mujoco-py](https://github.com/ZikangXiong/mobrob). Follow the [official guide](https://github.com/openai/mujoco-py#synopsis) for setup.
+
+## Features
+
+### Environments: 
+
+The repository provides five mobile robot environments:
+
+| Body Type  | Description                  | Framework | State dim | Action dim | Control type | Video                                           |
+| ---------- | ---------------------------- | --------- | --------- | ---------- | ------------ | ----------------------------------------------- |
+| point      | point mass                   | mujoco-py | 14        | 2          | Control CMD  | <video src='/assets/point.mp4' width=180/>      |
+| car        | car-like kinematics          | mujoco-py | 26        | 2          | Control CMD  | <video src='/assets/car.mp4' width=180/>        |
+| doggo      | quadruped dog kinematics     | mujoco-py | 58        | 12         | Control CMD  | <video src='/assets/doggo.mp4' width=180/>      |
+| drone      | drone kinematics             | pybullet  | 12        | 18         | Neural PID   | <video src='/assets/drone.mp4' width=180/>      |
+| turtlebot3 | turtlebot3-waffle kinematics | pybullet  | 43        | 2          | Neural Prop  | <video src='/assets/turtlebot3.mp4' width=180/> |
+
+* Control CMD: control commands directly sent to the engines. 
+* Neural PID: a neural network that maps the current state to the desired PID coefficients.
+* Neural Prop: a neural network that maps the current state to the desired propotional control coefficients.
 
 
-## What Are Provided
+### Reinforcement Learning Controllers: 
 
-### Robots: 
-3 mobile robot environment based on mujoco-py
+Controllers are trained using Proximal Policy Optimization (PPO). 
 
-| Body Type | Description                            | Video |
-| --------- | -------------------------------------- | ----- |
-| Point     | A rigid body with a point mass         |       |
-| Car       | A rigid body with car-like kinematics  |       |
-| Doggo     | A rigid body with quadruped kinematics |       |
-
-2 mobile robot environments based on pybullet
-    
-| Body Type | Description                                    | Video |
-| --------- | ---------------------------------------------- | ----- |
-| Drone     | A rigid body with drone kinematics             |       |
-| Turtlebot | A rigid body with turtlebot3-waffle kinematics |       |
-
-### RL Controllers: 
-
-> All the control is trained with Proximal Policy Optimization (PPO). 
-
-**Pretrained policies**: The pretrained policies are provided in [data/policies](/data/policies/). 
-
-**Training parameters**: The training parameters are provided in [data/configs](/data/configs/). You can tune the parameters according to your needs. For all supported parameters, please refer to [stable-baselines3 PPO](https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html)
-
-**Training**: The training scripts are provided in [example/train.py](/examples/train.py). For example, if you want to train the point robot, run the following command:
+- **Pretrained policies**: Available at [data/policies](/data/policies/). 
+- **Training parameters**: Available at [data/configs](/data/configs/). Refer to [stable-baselines3 PPO](https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html) for all supported parameters.
+- **Training**: Use scripts in [example/train.py](/examples/train.py). For instance, to train the point robot:
 
 ```shell
 python examples/train.py --env-name point 
 ```
 
-You can also finetune the trained policy by adding the `--finetune` flag. 
+To finetune a trained policy:
 
 ```shell
 python examples/train.py --env-name point --finetune
 ```
 
-During training, the training logs and the intermediate policies will be saved in `data/tmp`.
+Training logs and intermediate policies are saved in `data/tmp`.
 
-**Evaluation**: The evaluation scripts are provided in [example/control.py](/examples/control.py). For example, if you want to evaluate the point robot, run the following command:
+- **Evaluation**: Use scripts in [example/control.py](/examples/control.py). For instance, to evaluate the point robot:
 
 ```shell
 python examples/control.py --env-name point 
 ```
 
-This will enable GUI for visualization. You can also disable the GUI by adding the `--no-gui` flag. 
+To disable the GUI:
 
 ```shell
 python examples/control.py --env-name point --no-gui
 ```
 
-## Related Publications
+## Publications
 
-This repository is used in the following publications as benchmark environments.
+This repository is used in the following papers as the benchmark environments:
 
 ```bibtex
 @inproceedings{mfnlc,

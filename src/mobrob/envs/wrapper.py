@@ -33,6 +33,7 @@ class EnvWrapper(ABC, gym.Env):
         self.goal_space = self.get_goal_space()
 
         self._first_reset = True
+        self.render_mode = "human"
 
     def seed(self, seed=None):
         """
@@ -42,9 +43,17 @@ class EnvWrapper(ABC, gym.Env):
 
         # seed the spaces
         self.init_space.seed(seed)
-        self.goal_space.seed(seed + 1)  # avoid init on goal
+        self.goal_space.seed(
+            seed + 1 if seed is not None else None
+        )  # avoid init on goal
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
+
+    def toggle_render_mode(self):
+        """
+        Toggle the render mode between "human" and "rgb_array"
+        """
+        self.render_mode = "human" if self.render_mode == "rgb_array" else "rgb_array"
 
     @abstractmethod
     def _set_goal(self, goal: list | np.ndarray):
@@ -154,8 +163,6 @@ class EnvWrapper(ABC, gym.Env):
         Step the environment by applying the action to the robot,
         the returns are the observation, reward, terminated, trucated, info
         """
-        if self.enable_gui:
-            self.env.render()
 
         obs, _, terminated, trucated, info = self.env.step(action)
 
@@ -174,11 +181,6 @@ class EnvWrapper(ABC, gym.Env):
         """
         if "seed" in kwargs:
             self.seed(kwargs.pop("seed"))
-
-        if len(args) > 0:
-            print(f"Warning: args ({args}) is not empty, it is ignored.")
-        if len(kwargs) > 0:
-            print(f"Warning: kwargs ({kwargs}) is not empty, it is ignored.")
 
         if self._first_reset or not self.reached():
             # Only reset the robot if it has not reached the goal, this saves lots of simulation time.
@@ -207,14 +209,11 @@ class EnvWrapper(ABC, gym.Env):
         """
         return np.linalg.norm(self.get_pos() - self.get_goal()) < reach_radius
 
-    def render(self, mode="human"):
+    def render(self):
         """
         Render the environment
         """
-        if self.enable_gui:
-            return self.env.render(mode=mode)
-        else:
-            return None
+        return self.env.render(mode=self.render_mode)
 
     def close(self):
         self.env.close()
@@ -280,6 +279,8 @@ class MujocoGoalEnv(EnvWrapper, ABC):
 
 
 class PointEnv(MujocoGoalEnv):
+    render_mode = "rgb_array"
+
     def get_robot_config(self) -> dict:
         return {
             "robot_base": f"xmls/point.xml",

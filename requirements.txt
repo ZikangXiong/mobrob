@@ -9,3 +9,4 @@ gymnasium==0.28.1
 stable-baselines3[extra]==2.0.0
 mujoco-py==2.1.2.14
 PyYAML~=6.0
+moviepy~=1.0.3
