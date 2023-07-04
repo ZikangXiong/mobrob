@@ -18,15 +18,15 @@ The repository provides five mobile robot environments:
 
 | Body Type  | Description                  | Framework | State dim | Action dim | Control type | Video                                           |
 | ---------- | ---------------------------- | --------- | --------- | ---------- | ------------ | ----------------------------------------------- |
-| point      | point mass                   | mujoco-py | 14        | 2          | Control CMD  | <video src='/assets/point.mp4' width=180/>      |
-| car        | car-like kinematics          | mujoco-py | 26        | 2          | Control CMD  | <video src='/assets/car.mp4' width=180/>        |
-| doggo      | quadruped dog kinematics     | mujoco-py | 58        | 12         | Control CMD  | <video src='/assets/doggo.mp4' width=180/>      |
-| drone      | drone kinematics             | pybullet  | 12        | 18         | Neural PID   | <video src='/assets/drone.mp4' width=180/>      |
-| turtlebot3 | turtlebot3-waffle kinematics | pybullet  | 43        | 2          | Neural Prop  | <video src='/assets/turtlebot3.mp4' width=180/> |
+| point      | point mass                   | mujoco-py | 14        | 2          | Control CMD  | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/4702d447-e3d0-424f-bd6f-510c74c131cc' width=100/>      |
+| car        | car-like kinematics          | mujoco-py | 26        | 2          | Control CMD  | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/79ec89dc-c996-44e9-93f8-60d50d96630f' width=100/>        |
+| doggo      | quadruped dog kinematics     | mujoco-py | 58        | 12         | Control CMD  | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/6b9b67d9-a1c9-4d08-b0c3-cb640de33cb0' width=100/>      |
+| drone      | drone kinematics             | pybullet  | 12        | 18         | Neural PID   | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/7a3af860-402c-4b3f-ae3f-6caa884619b0' width=100/>      |
+| turtlebot3 | turtlebot3-waffle kinematics | pybullet  | 43        | 2          | Neural Prop  | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/41ba24aa-a5e1-4246-91b4-d1a59f13a1a9' width=100/> |
 
-* Control CMD: control commands directly sent to the engines. 
-* Neural PID: a neural network that maps the current state to the desired PID coefficients.
-* Neural Prop: a neural network that maps the current state to the desired propotional control coefficients.
+**Control CMD**: control commands directly sent to the engines.   
+**Neural PID**: a neural network that maps the current state to the desired PID coefficients.  
+**Neural Prop**: a neural network that maps the current state to the desired propotional control coefficients.  
 
 
 ### Reinforcement Learning Controllers: 
