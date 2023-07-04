@@ -35,26 +35,6 @@ class EnvWrapper(ABC, gym.Env):
         self._first_reset = True
         self.render_mode = "human"
 
-    def seed(self, seed=None):
-        """
-        Seed the environment
-        """
-        self.env.seed(seed)
-
-        # seed the spaces
-        self.init_space.seed(seed)
-        self.goal_space.seed(
-            seed + 1 if seed is not None else None
-        )  # avoid init on goal
-        self.action_space.seed(seed)
-        self.observation_space.seed(seed)
-
-    def toggle_render_mode(self):
-        """
-        Toggle the render mode between "human" and "rgb_array"
-        """
-        self.render_mode = "human" if self.render_mode == "rgb_array" else "rgb_array"
-
     @abstractmethod
     def _set_goal(self, goal: list | np.ndarray):
         """
@@ -118,6 +98,26 @@ class EnvWrapper(ABC, gym.Env):
         """
         pass
 
+    def seed(self, seed=None):
+        """
+        Seed the environment
+        """
+        self.env.seed(seed)
+
+        # seed the spaces
+        self.init_space.seed(seed)
+        self.goal_space.seed(
+            seed + 1 if seed is not None else None
+        )  # avoid init on goal
+        self.action_space.seed(seed)
+        self.observation_space.seed(seed)
+
+    def toggle_render_mode(self):
+        """
+        Toggle the render mode between "human" and "rgb_array"
+        """
+        self.render_mode = "human" if self.render_mode == "rgb_array" else "rgb_array"
+
     def set_goal(self, goal: list | np.ndarray):
         """
         Set the goal position of the robot, for example, [x, y, z]
@@ -161,17 +161,17 @@ class EnvWrapper(ABC, gym.Env):
     ) -> tuple[np.ndarray, float, bool, bool, dict]:
         """
         Step the environment by applying the action to the robot,
-        the returns are the observation, reward, terminated, trucated, info
+        the returns are the observation, reward, terminated, truncated, info
         """
 
-        obs, _, terminated, trucated, info = self.env.step(action)
+        obs, _, terminated, truncated, info = self.env.step(action)
 
         reward = self.reward_fn()
 
-        # this makes the value function simpler as it avoids the randomness introduced by the auto reset goal
+        # This makes the value function simpler as it avoids the randomness introduced by the auto reset goal
         terminated = self.terminate_on_goal and self.reached()
 
-        return obs, reward, terminated, trucated, info
+        return obs, reward, terminated, truncated, info
 
     def reset(
         self, init_pos: list | np.ndarray = None, *args, **kwargs
