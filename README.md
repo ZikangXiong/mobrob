@@ -20,15 +20,15 @@ The repository provides five mobile robot environments:
 
 | Body Type  | Description                  | Simulator | State dim | Action dim | Control type | Video                                                                                                               |
 | ---------- | ---------------------------- | --------- | --------- | ---------- | ------------ | ------------------------------------------------------------------------------------------------------------------- |
-| point      | point mass                   | mujoco-py | 14        | 2          | Control CMD  | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/4702d447-e3d0-424f-bd6f-510c74c131cc' width=100/> |
-| car        | car-like kinematics          | mujoco-py | 26        | 2          | Control CMD  | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/79ec89dc-c996-44e9-93f8-60d50d96630f' width=100/> |
-| doggo      | quadruped dog kinematics     | mujoco-py | 58        | 12         | Control CMD  | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/6b9b67d9-a1c9-4d08-b0c3-cb640de33cb0' width=100/> |
-| drone      | drone kinematics             | pybullet  | 12        | 18         | Neural PID   | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/7a3af860-402c-4b3f-ae3f-6caa884619b0' width=100/> |
-| turtlebot3 | turtlebot3-waffle kinematics | pybullet  | 43        | 2          | Neural Prop  | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/41ba24aa-a5e1-4246-91b4-d1a59f13a1a9' width=100/> |
+| point      | point mass                   | mujoco-py | 14        | 2          | Control CMD  | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/4a4e5280-6b2c-46be-b44d-94d5a6c96d34' width=100/> |
+| car        | car-like kinematics          | mujoco-py | 26        | 2          | Control CMD  | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/6ac6a44e-7f20-4a1a-91a9-5829989896af' width=100/> |
+| doggo      | quadruped dog kinematics     | mujoco-py | 58        | 12         | Control CMD  | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/a9be5df1-3df4-4b81-a81f-2e826588c186' width=100/> |
+| drone      | drone kinematics             | pybullet  | 12        | 18         | Neural PID   | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/456281ea-03f7-4368-8a60-1a36d67f009f' width=100/> |
+| turtlebot3 | turtlebot3-waffle kinematics | pybullet  | 43        | 2          | Neural Prop  | <video src='https://github.com/ZikangXiong/mobrob/assets/73256697/d14d6713-557e-4980-a82b-998ad29c104e' width=100/> |
 
 **Control CMD**: control commands directly sent to the engines.   
 **Neural PID**: a neural network that maps the current state to the desired PID coefficients.  
-**Neural Prop**: a neural network that maps the current state to the desired propotional control coefficients.  
+**Neural Prop**: a neural network that maps the current state to the desired proportional control coefficients.  
 
 
 ### Reinforcement Learning Controllers: 
@@ -83,7 +83,7 @@ One may refer to the other robot environment wrappers in [wrapper.py](/src/mobro
 
 ## Publications
 
-This repository is used in the following papers as the benchmark environments:
+This repository is used in the following papers as the benchmark environment:
 
 ```bibtex
 @inproceedings{mfnlc,
