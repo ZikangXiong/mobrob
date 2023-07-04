@@ -40,7 +40,7 @@ Controllers are trained using Proximal Policy Optimization (PPO).
 
 - **Pretrained policies**: Available at [data/policies](/data/policies/). 
 - **Training parameters**: Available at [data/configs](/data/configs/). Refer to [stable-baselines3 PPO](https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html) for all supported parameters.
-- **Training**: Use scripts in [example/train.py](/examples/train.py). For instance, to train the point robot:
+- **Training**: Use scripts in [examples/train.py](/examples/train.py). For instance, to train the point robot:
 
 ```shell
 python examples/train.py --env-name point 
@@ -54,7 +54,7 @@ python examples/train.py --env-name point --finetune
 
 Training logs and intermediate policies are saved in `data/tmp`.
 
-- **Evaluation**: Use scripts in [example/control.py](/examples/control.py). For instance, to evaluate the point robot:
+- **Evaluation**: Use scripts in [examples/control.py](/examples/control.py). For instance, to evaluate the point robot:
 
 ```shell
 python examples/control.py --env-name point 
