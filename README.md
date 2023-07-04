@@ -10,7 +10,7 @@ Install the package via pip:
 pip install git+https://github.com/ZikangXiong/mobrob
 ```
 
-This project partially relies on [mujoco-py](https://github.com/ZikangXiong/mobrob). Follow the [official guide](https://github.com/openai/mujoco-py#synopsis) for setup.
+This project partially relies on mujoco-py. Follow the [official guide](https://github.com/openai/mujoco-py#synopsis) for setup.
 
 ## Features
 
