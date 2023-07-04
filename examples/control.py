@@ -6,8 +6,8 @@ import numpy as np
 from mobrob import get_env, load_policy
 
 
-def simulate(env_name: str, policy_name: str):
-    env = get_env(env_name, enable_gui=True, terminate_on_goal=True)
+def simulate(env_name: str, policy_name: str, no_gui: bool):
+    env = get_env(env_name, enable_gui=not no_gui, terminate_on_goal=True)
     policy = load_policy(env_name, policy_name)
 
     rewards = []
@@ -37,9 +37,10 @@ def simulate(env_name: str, policy_name: str):
 
 if __name__ == "__main__":
     args_parser = argparse.ArgumentParser()
-    args_parser.add_argument("--env_name", type=str, default="point")
-    args_parser.add_argument("--policy_name", type=str, default="ppo")
+    args_parser.add_argument("--env-name", type=str, default="point")
+    args_parser.add_argument("--policy-name", type=str, default="ppo")
+    args_parser.add_argument("--no-gui", action="store_true", default=False)
 
     args = args_parser.parse_args()
 
-    simulate(env_name=args.env_name, policy_name=args.policy_name)
+    simulate(env_name=args.env_name, policy_name=args.policy_name, no_gui=args.no_gui)
