@@ -367,27 +367,26 @@ class BulletGoalEnv(EnvWrapper, ABC):
             self.render_goal(goal)
 
     def render_goal(self, goal: np.ndarray):
-        if self.enable_gui:
-            if len(goal) == 2:
-                goal = np.r_[goal, 0]
-            if self.goal_shape_id is None:
-                self.goal_shape_id = p.createVisualShape(
-                    shapeType=p.GEOM_SPHERE,
-                    radius=self.reach_radius,
-                    rgbaColor=[0, 1, 0, 0.5],
-                    specularColor=[0.4, 0.4, 0],
-                    physicsClientId=self.env.client_id,
-                )
-                self.goal_id = p.createMultiBody(
-                    baseVisualShapeIndex=self.goal_shape_id,
-                    basePosition=goal,
-                    useMaximalCoordinates=True,
-                    physicsClientId=self.env.client_id,
-                )
-            else:
-                p.resetBasePositionAndOrientation(
-                    self.goal_id, goal, [0, 0, 0, 1], physicsClientId=self.env.client_id
-                )
+        if len(goal) == 2:
+            goal = np.r_[goal, 0]
+        if self.goal_shape_id is None:
+            self.goal_shape_id = p.createVisualShape(
+                shapeType=p.GEOM_SPHERE,
+                radius=self.reach_radius,
+                rgbaColor=[0, 1, 0, 0.5],
+                specularColor=[0.4, 0.4, 0],
+                physicsClientId=self.env.client_id,
+            )
+            self.goal_id = p.createMultiBody(
+                baseVisualShapeIndex=self.goal_shape_id,
+                basePosition=goal,
+                useMaximalCoordinates=True,
+                physicsClientId=self.env.client_id,
+            )
+        else:
+            p.resetBasePositionAndOrientation(
+                self.goal_id, goal, [0, 0, 0, 1], physicsClientId=self.env.client_id
+            )
 
 
 class DroneEnv(BulletGoalEnv):
