@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 import gymnasium as gym
 import numpy as np
 import pybullet as p
+from gymnasium.spaces import Box
 from gymnasium.wrappers import TimeLimit
-
 from mobrob.envs.mujoco_robots.robots.engine import Engine, quat2zalign
 from mobrob.envs.pybullet_robots.base import BulletEnv
 from mobrob.envs.pybullet_robots.robots.drone import Drone
@@ -208,6 +208,18 @@ class EnvWrapper(ABC, gym.Env):
         Check if the robot has reached the goal
         """
         return np.linalg.norm(self.get_pos() - self.get_goal()) < reach_radius
+
+    def reset_init_space(self, init_space: Box):
+        """
+        Reset the init space of the robot, for example, Box(3,)
+        """
+        self.init_space = init_space
+
+    def reset_goal_space(self, goal_space: Box):
+        """
+        Reset the goal space of the robot, for example, Box(3,)
+        """
+        self.goal_space = goal_space
 
     def render(self):
         """
