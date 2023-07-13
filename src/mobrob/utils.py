@@ -3,9 +3,7 @@ import sys
 from contextlib import contextmanager
 from os.path import abspath, dirname
 
-import gymnasium as gym
 import pybullet as p
-from gymnasium.core import Env
 from stable_baselines3 import PPO
 
 import mobrob

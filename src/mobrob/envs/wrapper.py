@@ -54,49 +54,42 @@ class EnvWrapper(ABC, gym.Env):
         """
         Get the position of the robot, for example, [x, y, z]
         """
-        pass
 
     @abstractmethod
     def set_pos(self, pos: list | np.ndarray):
         """
         Set the position of the robot, for example, [x, y, z]
         """
-        pass
 
     @abstractmethod
     def get_obs(self) -> np.ndarray:
         """
         Get the observation of the robot, for example, [x, y, z]
         """
-        pass
 
     @abstractmethod
     def get_observation_space(self) -> gym.Space:
         """
         Get the observation space of the robot, for example, Box(3,)
         """
-        pass
 
     @abstractmethod
     def get_action_space(self) -> gym.Space:
         """
         Get the action space of the robot, for example, Box(3,)
         """
-        pass
 
     @abstractmethod
     def get_init_space(self) -> gym.Space:
         """
         Get the init space of the robot, for example, Box(3,)
         """
-        pass
 
     @abstractmethod
     def get_goal_space(self) -> gym.Space:
         """
         Get the goal space of the robot, for example, Box(3,)
         """
-        pass
 
     def seed(self, seed=None):
         """
