@@ -5,6 +5,7 @@ import numpy as np
 import pybullet as p
 from gymnasium.spaces import Box
 from gymnasium.wrappers import TimeLimit
+
 from mobrob.envs.mujoco_robots.robots.engine import Engine, quat2zalign
 from mobrob.envs.pybullet_robots.base import BulletEnv
 from mobrob.envs.pybullet_robots.robots.drone import Drone
@@ -295,9 +296,9 @@ class PointEnv(MujocoGoalEnv):
         }
 
     def set_pos(self, pos: list | np.ndarray):
+        self.env.reset()
         body_id = self.env.sim.model.body_name2id("robot")
         self.env.sim.model.body_pos[body_id][:2] = pos
-        self.env.sim.data.body_xpos[body_id][:2] = pos
         self.env.sim.forward()
 
 
