@@ -98,7 +98,7 @@ class BulletEnv(gym.Env):
         p.setPhysicsEngineParameter(deterministicOverlappingPairs=1)
 
     def step(self, cmd: Union[np.ndarray, List[np.ndarray]]):
-        self.robot.ctrl(cmd)
+        self.robot.ctrl(np.array(cmd))
         p.stepSimulation(self.client_id)
         if self._camera_following:
             base_pos, base_orn = p.getBasePositionAndOrientation(

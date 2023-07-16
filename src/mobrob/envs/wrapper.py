@@ -129,7 +129,10 @@ class EnvWrapper(ABC, gym.Env):
         """
         Get the goal position of the robot, for example, [x, y, z]
         """
-        return self._goal
+        if self._goal is None:
+            return np.array([])
+        else:
+            return self._goal
 
     def reward_fn(self) -> float:
         """
@@ -138,7 +141,7 @@ class EnvWrapper(ABC, gym.Env):
         """
         current_pos = self.get_pos()
         if self._goal is None or self._prev_pos is None:
-            reward = 0
+            reward = 0.0  # changed from 0 to 0.0 to match the return type
         else:
             reward = np.linalg.norm(self._goal - self._prev_pos) - np.linalg.norm(
                 self._goal - current_pos
@@ -168,7 +171,7 @@ class EnvWrapper(ABC, gym.Env):
         return obs, reward, terminated, truncated, info
 
     def reset(
-        self, init_pos: list | np.ndarray = None, *args, **kwargs
+        self, init_pos: list | np.ndarray | None = None, *args, **kwargs
     ) -> tuple[np.ndarray, dict]:
         """
         Reset the environment, the return is the observation and reset info
@@ -201,7 +204,7 @@ class EnvWrapper(ABC, gym.Env):
         """
         Check if the robot has reached the goal
         """
-        return np.linalg.norm(self.get_pos() - self.get_goal()) < reach_radius
+        return bool(np.linalg.norm(self.get_pos() - self.get_goal()) < reach_radius)
 
     def reset_init_space(self, init_space: Box):
         """
@@ -372,7 +375,7 @@ class BulletGoalEnv(EnvWrapper, ABC):
         if self.enable_gui:
             self.render_goal(goal)
 
-    def render_goal(self, goal: np.ndarray):
+    def render_goal(self, goal: list | np.ndarray):
         if len(goal) == 2:
             goal = np.r_[goal, 0]
         if self.goal_shape_id is None:
@@ -478,7 +481,7 @@ class DroneEnv(BulletGoalEnv):
     def step(
         self, action: list | np.ndarray
     ) -> tuple[np.ndarray, float, bool, bool, dict]:
-        action = action.reshape((6, 3))
+        action = np.array(action).reshape((6, 3))
         self.env.robot.controller.finetune_force_pid_coef(*action[:3])
         self.env.robot.controller.finetune_torque_pid_coef(*action[3:])
         action = self.env.robot.controller.control(self.get_goal())
@@ -520,8 +523,8 @@ class Turtlebot3Env(BulletGoalEnv):
         upper_obs += [upper_lin_vel, upper_lin_vel, upper_angle_vel]
         upper_obs += [ray_length] * self.env.robot.n_rays
 
-        upper_obs = np.array(upper_obs, dtype=np.float32)
-        observation_space = gym.spaces.Box(low=-upper_obs, high=upper_obs)
+        upper_obs_arr = np.array(upper_obs, dtype=np.float32)
+        observation_space = gym.spaces.Box(low=-upper_obs_arr, high=upper_obs_arr)
 
         return observation_space
 

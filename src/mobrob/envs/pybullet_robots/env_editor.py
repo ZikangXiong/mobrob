@@ -1,5 +1,3 @@
-from typing import Dict, List, Tuple, Union
-
 import numpy as np
 import pybullet as p
 import pybullet_data
@@ -12,7 +10,7 @@ class EnvEditor:
         self.client_id = client_id
 
         # cache objects to avoid recreation
-        self.objects: Dict[str, Dict[Tuple, ObjID]] = {
+        self.objects: dict[str, dict[tuple, ObjID]] = {
             "ball": {},
             "cube": {},
             "duck": {},
@@ -84,9 +82,9 @@ class EnvEditor:
 
     def add_ball(
         self,
-        pos: Union[List, np.ndarray],
+        pos: list | np.ndarray,
         size: float = 2.0,
-        color: Tuple = (0, 1, 0, 0.5),
+        color: tuple = (0, 1, 0, 0.5),
     ) -> int:
         props = (size, color)
         obj_id = self.get_shape("ball", props)
@@ -105,12 +103,14 @@ class EnvEditor:
 
     def add_cube(
         self,
-        pos: Union[List, np.ndarray],
-        ori: Union[List, np.ndarray] = (np.pi / 2, 0, np.pi),
+        pos: list | np.ndarray,
+        ori: list[float] | np.ndarray[float] | None = None,
         size: float = 1.0,
-        color: Tuple = (0.7, 0.7, 0.7, 1.0),
-        specular: Tuple = (0.7, 0.7, 0.7, 0.4),
+        color: tuple[float, float, float, float] = (0.7, 0.7, 0.7, 1.0),
+        specular: tuple[float, float, float, float] = (0.7, 0.7, 0.7, 0.4),
     ) -> int:
+        if ori is None:
+            ori = [np.pi / 2, 0, np.pi]
         props = (size, color, specular)
         obj_id = self.get_shape("cube", props)
         body_id = p.createMultiBody(
@@ -126,12 +126,14 @@ class EnvEditor:
 
     def add_duck(
         self,
-        pos: Union[List, np.ndarray],
-        ori: Union[List, np.ndarray] = (np.pi / 2, 0, np.pi),
+        pos: list | np.ndarray,
+        ori: list[float] | np.ndarray[float] | None = None,
         size: float = 1.0,
-        color: Tuple = (1, 1, 1, 0.75),
-        specular: Tuple = (0, 1, 1, 0.4),
+        color: tuple = (1, 1, 1, 0.75),
+        specular: tuple = (0, 1, 1, 0.4),
     ) -> int:
+        if ori is None:
+            ori = [np.pi / 2, 0, np.pi]
         props = (size, color, specular)
         obj_id = self.get_shape("duck", props)
         body_id = p.createMultiBody(
@@ -146,7 +148,7 @@ class EnvEditor:
         )
         return body_id
 
-    def change_color(self, obj_id: int, rgb_color: Tuple, link_id: int = -1):
+    def change_color(self, obj_id: int, rgb_color: tuple, link_id: int = -1):
         p.changeVisualShape(
             objectUniqueId=obj_id,
             linkIndex=link_id,
@@ -165,11 +167,11 @@ class EnvEditor:
         chi_body_id: int,
         chi_link_id: int,
         joint_type: int = p.JOINT_FIXED,
-        joint_axis: Union[Tuple, List] = (0, 0, 0),
-        par_frame_pos: Union[Tuple, List] = (0, 0, 0),
-        chi_frame_pos: Union[Tuple, List] = (0, 0, 0),
-        par_frame_ori: Union[Tuple, List] = None,
-        chi_frame_ori: Union[Tuple, List] = None,
+        joint_axis: tuple | list = (0, 0, 0),
+        par_frame_pos: tuple | list = (0, 0, 0),
+        chi_frame_pos: tuple | list = (0, 0, 0),
+        par_frame_ori: tuple | list | None = None,
+        chi_frame_ori: tuple | list | None = None,
     ) -> int:
         return p.createConstraint(
             parentBodyUniqueId=par_body_id,
