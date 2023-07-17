@@ -296,6 +296,10 @@ class PointEnv(MujocoGoalEnv):
             "sensors_obs": self.BASE_SENSORS,
             "observe_com": False,
             "observe_goal_comp": True,
+            "rectangle_obs_pos": [[2, 2]],
+            "rectangle_obs_size": [[0.1, 0.2]],
+            "circle_obs_pos": [[-2, -2]],
+            "circle_obs_size": [[0.2]],
         }
 
     def set_pos(self, pos: list | np.ndarray):

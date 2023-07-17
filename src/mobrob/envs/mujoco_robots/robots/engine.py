@@ -25,6 +25,7 @@ COLOR_WALL = np.array([0.5, 0.5, 0.5, 1])
 COLOR_GREMLIN = np.array([0.5, 0, 1, 1])
 COLOR_CIRCLE = np.array([0, 1, 0, 1])
 COLOR_RED = np.array([1, 0, 0, 1])
+COLOR_OBS = np.array([0.5, 0.5, 0.5, 1])
 
 # Groups are a mujoco-specific mechanism for selecting which geom objects to "see"
 # We use these for raycasting lidar, where there are different lidar types.
@@ -39,6 +40,7 @@ GROUP_HAZARD = 3
 GROUP_VASE = 4
 GROUP_GREMLIN = 5
 GROUP_CIRCLE = 6
+GROUP_OBS = 7
 
 # Constant for origin of world
 ORIGIN_COORDINATES = np.zeros(3)
@@ -50,7 +52,6 @@ DEFAULT_HEIGHT = 1500
 
 class ResamplingError(AssertionError):
     """Raised when we fail to sample a valid distribution of objects or goals"""
-
 
 
 def theta2vec(theta):
@@ -297,6 +298,12 @@ class Engine(gym.Env, gym.utils.EzPickle):
         "_seed": None,
         # Never Done
         "never_done": True,
+        # Circle Obstacle
+        "circle_obs_pos": [],
+        "circle_obs_size": [],
+        # Rectangle Obstacle
+        "rectangle_obs_pos": [],
+        "rectangle_obs_size": [],
     }
 
     def __init__(self, config={}):
@@ -856,6 +863,33 @@ class Engine(gym.Env, gym.utils.EzPickle):
                     "rgba": COLOR_WALL,
                 }
                 world_config["geoms"][name] = geom
+        if self.circle_obs_pos:
+            for i in range(len(self.circle_obs_pos)):
+                name = f"circle{i}"
+                geom = {
+                    "name": name,
+                    "size": np.r_[self.circle_obs_size[i], 0.1],
+                    "pos": np.r_[self.circle_obs_pos[i], 0.1],
+                    "rot": 0,
+                    "type": "cylinder",
+                    "group": GROUP_OBS,
+                    "rgba": COLOR_OBS,
+                }
+                world_config["geoms"][name] = geom
+        if self.rectangle_obs_pos:
+            for i in range(len(self.rectangle_obs_pos)):
+                name = f"rectangular{i}"
+                geom = {
+                    "name": name,
+                    "size": np.r_[self.rectangle_obs_size[i], 0.1],
+                    "pos": np.r_[self.rectangle_obs_pos[i], 0.1],
+                    "rot": 0,
+                    "type": "box",
+                    "group": GROUP_OBS,
+                    "rgba": COLOR_OBS,
+                }
+                world_config["geoms"][name] = geom
+
         if self.buttons_num:
             for i in range(self.buttons_num):
                 name = f"button{i}"
