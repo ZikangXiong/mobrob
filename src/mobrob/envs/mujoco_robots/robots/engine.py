@@ -103,7 +103,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         "placements_margin": 0.0,  # Additional margin added to keepout when placing objects
         # Floor
         # In display mode, the visible part of the floor is cropped
-        "floor_display_mode": False,
+        "floor_display_mode": True,
         # Robot
         # Robot placements list (defaults to full extents)
         "robot_placements": None,
@@ -298,12 +298,8 @@ class Engine(gym.Env, gym.utils.EzPickle):
         "_seed": None,
         # Never Done
         "never_done": True,
-        # Circle Obstacle
-        "circle_obs_pos": [],
-        "circle_obs_size": [],
-        # Rectangle Obstacle
-        "rectangle_obs_pos": [],
-        "rectangle_obs_size": [],
+        # Obstacles
+        "obstacles": [],
     }
 
     def __init__(self, config={}):
@@ -863,33 +859,31 @@ class Engine(gym.Env, gym.utils.EzPickle):
                     "rgba": COLOR_WALL,
                 }
                 world_config["geoms"][name] = geom
-        if self.circle_obs_pos:
-            for i in range(len(self.circle_obs_pos)):
-                name = f"circle{i}"
-                geom = {
-                    "name": name,
-                    "size": np.r_[self.circle_obs_size[i], 0.1],
-                    "pos": np.r_[self.circle_obs_pos[i], 0.1],
-                    "rot": 0,
-                    "type": "cylinder",
-                    "group": GROUP_OBS,
-                    "rgba": COLOR_OBS,
-                }
-                world_config["geoms"][name] = geom
-        if self.rectangle_obs_pos:
-            for i in range(len(self.rectangle_obs_pos)):
-                name = f"rectangular{i}"
-                geom = {
-                    "name": name,
-                    "size": np.r_[self.rectangle_obs_size[i], 0.1],
-                    "pos": np.r_[self.rectangle_obs_pos[i], 0.1],
-                    "rot": 0,
-                    "type": "box",
-                    "group": GROUP_OBS,
-                    "rgba": COLOR_OBS,
-                }
-                world_config["geoms"][name] = geom
-
+        if self.obstacles:
+            for i in range(len(self.obstacles)):
+                name = f"obstacle{i}"
+                if self.obstacles[i]["type"] == "circle":
+                    geom = {
+                        "name": name,
+                        "size": np.r_[self.obstacles[i]["radius"], 0.1],
+                        "pos": np.r_[self.obstacles[i]["center"], 0.1],
+                        "rot": 0,
+                        "type": "cylinder",
+                        "group": GROUP_OBS,
+                        "rgba": COLOR_OBS,
+                    }
+                    world_config["geoms"][name] = geom
+                elif self.obstacles[i]["type"] == "rectangle":
+                    geom = {
+                        "name": name,
+                        "size": np.r_[self.obstacles[i]["size"], 0.1],
+                        "pos": np.r_[self.obstacles[i]["center"], 0.1],
+                        "rot": 0,
+                        "type": "box",
+                        "group": GROUP_OBS,
+                        "rgba": COLOR_OBS,
+                    }
+                    world_config["geoms"][name] = geom
         if self.buttons_num:
             for i in range(self.buttons_num):
                 name = f"button{i}"

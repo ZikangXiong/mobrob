@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import gymnasium as gym
 import numpy as np
 import pybullet as p
+import yaml
 from gymnasium.spaces import Box
 from gymnasium.wrappers import TimeLimit
 
@@ -10,6 +11,7 @@ from mobrob.envs.mujoco_robots.robots.engine import Engine, quat2zalign
 from mobrob.envs.pybullet_robots.base import BulletEnv
 from mobrob.envs.pybullet_robots.robots.drone import Drone
 from mobrob.envs.pybullet_robots.robots.turtlebot3 import Turtlebot3
+from mobrob.utils import DATA_DIR
 
 
 class EnvWrapper(ABC, gym.Env):
@@ -17,13 +19,17 @@ class EnvWrapper(ABC, gym.Env):
         self,
         enable_gui: bool = False,
         terminate_on_goal: bool = False,
+        map_id: int | None = None,
     ):
         """
         Gym environment wrapper for robots
         :param enable_gui: whether to enable the GUI
+        :param terminate_on_goal: whether to terminate the episode when the robot reaches a goal
+        :param map_id: the id of the map, if None, no obstacles will be added
         """
         self.enable_gui = enable_gui
         self.terminate_on_goal = terminate_on_goal
+        self.map_id = map_id
         self._goal = None
         self._prev_pos = None
 
@@ -235,8 +241,35 @@ class MujocoGoalEnv(EnvWrapper, ABC):
     def get_robot_config(self) -> dict:
         pass
 
+    def get_map_config(self) -> dict:
+        if self.map_id is None:
+            return {}
+
+        map_config_path = f"{DATA_DIR}/maps/{self.map_id}.yaml"
+        with open(map_config_path, "r") as f:
+            map_config = yaml.safe_load(f)
+
+        mojoco_map_config = {}
+
+        placement_extents = np.array(map_config["map_size"]) / 20
+        map_size = np.array(map_config["map_size"])
+        map_size_lower = -map_size / 2 - placement_extents
+        map_size_upper = map_size / 2 + placement_extents
+        x_min, y_min, x_max, y_max = (
+            map_size_lower[0],
+            map_size_lower[1],
+            map_size_upper[0],
+            map_size_upper[1],
+        )
+        mojoco_map_config["placements_extents"] = [x_min, y_min, x_max, y_max]
+
+        mojoco_map_config["obstacles"] = map_config["obstacles"]
+
+        return mojoco_map_config
+
     def build_env(self) -> Engine:
         config = self.get_robot_config()
+        config.update(self.get_map_config())
         env = Engine(config)
 
         return env
@@ -296,10 +329,6 @@ class PointEnv(MujocoGoalEnv):
             "sensors_obs": self.BASE_SENSORS,
             "observe_com": False,
             "observe_goal_comp": True,
-            "rectangle_obs_pos": [[2, 2]],
-            "rectangle_obs_size": [[0.1, 0.2]],
-            "circle_obs_pos": [[-2, -2]],
-            "circle_obs_size": [[0.2]],
         }
 
     def set_pos(self, pos: list | np.ndarray):
@@ -555,15 +584,16 @@ def get_env(
     enable_gui: bool = False,
     terminate_on_goal: bool = False,
     time_limit: int | None = None,
+    map_id: int | None = None,
 ):
     if env_name == "drone":
         env = DroneEnv(enable_gui, terminate_on_goal)
     elif env_name == "point":
-        env = PointEnv(enable_gui, terminate_on_goal)
+        env = PointEnv(enable_gui, terminate_on_goal, map_id=map_id)
     elif env_name == "car":
-        env = CarEnv(enable_gui, terminate_on_goal)
+        env = CarEnv(enable_gui, terminate_on_goal, map_id=map_id)
     elif env_name == "doggo":
-        env = DoggoEnv(enable_gui, terminate_on_goal)
+        env = DoggoEnv(enable_gui, terminate_on_goal, map_id=map_id)
     elif env_name == "turtlebot3":
         env = Turtlebot3Env(enable_gui, terminate_on_goal)
     else:

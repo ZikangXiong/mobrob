@@ -11,6 +11,11 @@ class MapBuilder:
         self.pixel_size = pixel_size
         self.map_pixel_dim = self.value_to_pixel(self.map_size)
         self._map = self.create_empty_map()
+        self.config = {
+            "map_size": self.map_size.tolist(),
+            "pixel_size": self.pixel_size,
+            "obstacles": [],
+        }
 
     @classmethod
     def from_predefined_map(cls, map_id: int):
@@ -66,6 +71,13 @@ class MapBuilder:
 
     def add_circle_obstacle(self, center: np.ndarray, radius: float):
         """Adds a circular obstacle to the map."""
+        self.config["obstacles"].append(
+            {
+                "type": "circle",
+                "center": center.tolist(),
+                "radius": radius,
+            }
+        )
         center_pixel = self.position_to_pixel(center)
         radius_pixel = self.value_to_pixel(np.array(radius))
         y, x = np.ogrid[
@@ -74,11 +86,23 @@ class MapBuilder:
         ]
 
         mask = x * x + y * y <= radius_pixel**2
+        try:
+            self._map[mask] = 1
+        except:
+            import ipdb
 
-        self._map[mask] = 1
+            ipdb.set_trace()
 
     def add_rectangle_obstacle(self, center: np.ndarray, size: np.ndarray):
         """Adds a rectangular obstacle to the map."""
+        self.config["obstacles"].append(
+            {
+                "type": "rectangle",
+                "center": center.tolist(),
+                "size": size.tolist(),
+            }
+        )
+
         half_size = size / 2
         lower_left = center - half_size
         upper_right = center + half_size
@@ -93,6 +117,41 @@ class MapBuilder:
             int(lower_left_pixel[0]) : int(upper_right_pixel[0]),
         ] = 1
 
+    def scale_map(self, scale_factor: float):
+        """Scales the map."""
+        self.pixel_size *= scale_factor
+        self.map_size *= scale_factor
+        self.map_pixel_dim = self.value_to_pixel(self.map_size)
+
+        self.config["map_size"] = (
+            np.array(self.config["map_size"]) * scale_factor
+        ).tolist()
+        self.config["pixel_size"] *= scale_factor
+
+        self._map = self.create_empty_map()
+        obstacles = self.config["obstacles"]
+        self.config["obstacles"] = []
+        for obstacle in obstacles:
+            if obstacle["type"] == "circle":
+                self.add_circle_obstacle(
+                    center=np.array(obstacle["center"]) * scale_factor,
+                    radius=obstacle["radius"] * scale_factor,
+                )
+            elif obstacle["type"] == "rectangle":
+                self.add_rectangle_obstacle(
+                    center=np.array(obstacle["center"]) * scale_factor,
+                    size=np.array(obstacle["size"]) * scale_factor,
+                )
+            else:
+                raise ValueError(f"Unknown obstacle type {obstacle['type']}")
+
     def plot_map(self):
         plt.imshow(self._map)
         plt.show()
+
+    def dump_config(self, path):
+        with open(path, "w") as f:
+            yaml.dump(self.config, f)
+
+    def get_map_array(self) -> np.ndarray:
+        return self._map
