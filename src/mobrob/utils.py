@@ -3,17 +3,17 @@ import sys
 from contextlib import contextmanager
 from os.path import abspath, dirname
 
-import pybullet as p
-from stable_baselines3 import PPO
-
 import mobrob
+import pybullet as p
+from gymnasium import Env
+from stable_baselines3 import PPO
 
 DATA_DIR = os.path.join(dirname(dirname(dirname(abspath(mobrob.__file__)))), "data")
 PROJ_DIR = dirname(abspath(mobrob.__file__))
 
 
-def load_policy(env_name: str, policy_name: str):
-    return PPO.load(f"{DATA_DIR}/policies/{env_name}-{policy_name}.zip")
+def load_policy(env_name: str, policy_name: str, env: Env = None):
+    return PPO.load(f"{DATA_DIR}/policies/{env_name}-{policy_name}.zip", env=env)
 
 
 class BulletVideoRecorder:

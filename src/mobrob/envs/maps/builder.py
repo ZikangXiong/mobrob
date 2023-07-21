@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
-
 from mobrob.utils import DATA_DIR
 
 
@@ -86,12 +85,7 @@ class MapBuilder:
         ]
 
         mask = x * x + y * y <= radius_pixel**2
-        try:
-            self._map[mask] = 1
-        except:
-            import ipdb
-
-            ipdb.set_trace()
+        self._map[mask] = 1
 
     def add_rectangle_obstacle(self, center: np.ndarray, size: np.ndarray):
         """Adds a rectangular obstacle to the map."""

@@ -6,7 +6,6 @@ import pybullet as p
 import yaml
 from gymnasium.spaces import Box
 from gymnasium.wrappers import TimeLimit
-
 from mobrob.envs.mujoco_robots.robots.engine import Engine, quat2zalign
 from mobrob.envs.pybullet_robots.base import BulletEnv
 from mobrob.envs.pybullet_robots.robots.drone import Drone

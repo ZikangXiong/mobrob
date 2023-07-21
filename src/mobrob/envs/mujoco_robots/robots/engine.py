@@ -7,17 +7,16 @@ import glfw
 import gymnasium as gym
 import mujoco_py
 import numpy as np
+from mobrob.envs.mujoco_robots.robots.world import Robot, World
 from mujoco_py import MjRenderContextOffscreen, MjViewer, MujocoException, const
 from PIL import Image
-
-from mobrob.envs.mujoco_robots.robots.world import Robot, World
 
 # Distinct colors for different types of objects.
 # For now this is mostly used for visualization.
 # This also affects the vision observation, so if training from pixels.
 COLOR_BOX = np.array([1, 1, 0, 1])
 COLOR_BUTTON = np.array([1, 0.5, 0, 1])
-COLOR_GOAL = np.array([0, 1, 0, 1])
+COLOR_GOAL = np.array([0, 1, 0, 0])
 COLOR_VASE = np.array([0, 1, 1, 1])
 COLOR_HAZARD = np.array([0, 0, 1, 1])
 COLOR_PILLAR = np.array([0.5, 0.5, 1, 1])
@@ -145,11 +144,6 @@ class Engine(gym.Env, gym.utils.EzPickle):
         "observe_com": False,  # Observe the center of mass of the robot
         # Render options
         "render_labels": False,
-        "render_lidar_markers": True,
-        "render_lidar_radius": 0.15,
-        "render_lidar_size": 0.025,
-        "render_lidar_offset_init": 0.5,
-        "render_lidar_offset_delta": 0.06,
         # Vision observation parameters
         "vision_size": (60, 40),
         # Size (width, height) of vision observation; gets flipped internally to (rows, cols) format
@@ -737,8 +731,6 @@ class Engine(gym.Env, gym.utils.EzPickle):
             floor_size = max(self.placements_extents)
             world_config["floor_size"] = [floor_size + 0.1, floor_size + 0.1, 1]
 
-        # if not self.observe_vision:
-        #    world_config['render_context'] = -1  # Hijack this so we don't create context
         world_config["observe_vision"] = self.observe_vision
 
         # Extra objects to add to the scene
@@ -1553,42 +1545,6 @@ class Engine(gym.Env, gym.utils.EzPickle):
                 print(f"Warning: reward{reward} was outside of range!")
         return reward
 
-    def render_lidar(self, poses, color, offset, group):
-        """Render the lidar observation"""
-        robot_pos = self.world.robot_pos()
-        robot_mat = self.world.robot_mat()
-        lidar = self.obs_lidar(poses, group)
-        for i, sensor in enumerate(lidar):
-            if self.lidar_type == "pseudo":
-                i += 0.5  # Offset to center of bin
-            theta = 2 * np.pi * i / self.lidar_num_bins
-            rad = self.render_lidar_radius
-            binpos = np.array([np.cos(theta) * rad, np.sin(theta) * rad, offset])
-            pos = robot_pos + np.matmul(binpos, robot_mat.transpose())
-            alpha = min(1, sensor + 0.1)
-            self.viewer.add_marker(
-                pos=pos,
-                size=self.render_lidar_size * np.ones(3),
-                type=const.GEOM_SPHERE,
-                rgba=np.array(color) * alpha,
-                label="",
-            )
-
-    def render_compass(self, pose, color, offset):
-        """Render a compass observation"""
-        robot_pos = self.world.robot_pos()
-        robot_mat = self.world.robot_mat()
-        # Truncate the compass to only visualize XY component
-        compass = np.concatenate([self.obs_compass(pose)[:2] * 0.15, [offset]])
-        pos = robot_pos + np.matmul(compass, robot_mat.transpose())
-        self.viewer.add_marker(
-            pos=pos,
-            size=0.05 * np.ones(3),
-            type=const.GEOM_SPHERE,
-            rgba=np.array(color) * 0.5,
-            label="",
-        )
-
     def render_area(self, pos, size, color, label="", alpha=0.1):
         """Render a radial area in the environment"""
         z_size = min(size, 0.3)
@@ -1631,7 +1587,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         width=DEFAULT_WIDTH,
         height=DEFAULT_HEIGHT,
         follow=False,
-        vertical=False,
+        vertical=True,
         scale=12.0,
     ):
         """Render the environment to the screen"""
@@ -1678,60 +1634,6 @@ class Engine(gym.Env, gym.utils.EzPickle):
         if camera_id is not None:
             # Update camera if desired
             self.viewer.cam.fixedcamid = camera_id
-
-        # Lidar markers
-        if self.render_lidar_markers:
-            # Height offset for successive lidar indicators
-            offset = self.render_lidar_offset_init
-            if (
-                "box_lidar" in self.obs_space_dict
-                or "box_compass" in self.obs_space_dict
-            ):
-                if "box_lidar" in self.obs_space_dict:
-                    self.render_lidar([self.box_pos], COLOR_BOX, offset, GROUP_BOX)
-                if "box_compass" in self.obs_space_dict:
-                    self.render_compass(self.box_pos, COLOR_BOX, offset)
-                offset += self.render_lidar_offset_delta
-            if (
-                "goal_lidar" in self.obs_space_dict
-                or "goal_compass" in self.obs_space_dict
-            ):
-                if "goal_lidar" in self.obs_space_dict:
-                    self.render_lidar([self.goal_pos], COLOR_GOAL, offset, GROUP_GOAL)
-                if "goal_compass" in self.obs_space_dict:
-                    self.render_compass(self.goal_pos, COLOR_GOAL, offset)
-                offset += self.render_lidar_offset_delta
-            if "buttons_lidar" in self.obs_space_dict:
-                self.render_lidar(self.buttons_pos, COLOR_BUTTON, offset, GROUP_BUTTON)
-                offset += self.render_lidar_offset_delta
-            if "circle_lidar" in self.obs_space_dict:
-                self.render_lidar(
-                    [ORIGIN_COORDINATES], COLOR_CIRCLE, offset, GROUP_CIRCLE
-                )
-                offset += self.render_lidar_offset_delta
-            if "walls_lidar" in self.obs_space_dict:
-                self.render_lidar(self.walls_pos, COLOR_WALL, offset, GROUP_WALL)
-                offset += self.render_lidar_offset_delta
-            if "hazards_lidar" in self.obs_space_dict:
-                self.render_lidar(self.hazards_pos, COLOR_HAZARD, offset, GROUP_HAZARD)
-                offset += self.render_lidar_offset_delta
-            if "pillars_lidar" in self.obs_space_dict:
-                self.render_lidar(self.pillars_pos, COLOR_PILLAR, offset, GROUP_PILLAR)
-                offset += self.render_lidar_offset_delta
-            if "gremlins_lidar" in self.obs_space_dict:
-                self.render_lidar(
-                    self.gremlins_obj_pos, COLOR_GREMLIN, offset, GROUP_GREMLIN
-                )
-                offset += self.render_lidar_offset_delta
-            if "vases_lidar" in self.obs_space_dict:
-                self.render_lidar(self.vases_pos, COLOR_VASE, offset, GROUP_VASE)
-                offset += self.render_lidar_offset_delta
-
-        # Add goal marker
-        if self.task == "button":
-            self.render_area(
-                self.goal_pos, self.buttons_size * 2, COLOR_BUTTON, "goal", alpha=0.1
-            )
 
         # Add indicator for nonzero cost
         if self._cost.get("cost", 0) > 0:
