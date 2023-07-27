@@ -7,9 +7,10 @@ import glfw
 import gymnasium as gym
 import mujoco_py
 import numpy as np
-from mobrob.envs.mujoco_robots.robots.world import Robot, World
 from mujoco_py import MjRenderContextOffscreen, MjViewer, MujocoException, const
 from PIL import Image
+
+from mobrob.envs.mujoco_robots.robots.world import Robot, World
 
 # Distinct colors for different types of objects.
 # For now this is mostly used for visualization.
@@ -1547,13 +1548,12 @@ class Engine(gym.Env, gym.utils.EzPickle):
 
     def render_area(self, pos, size, color, label="", alpha=0.1):
         """Render a radial area in the environment"""
-        z_size = min(size, 0.3)
         pos = np.asarray(pos)
         if pos.shape == (2,):
             pos = np.r_[pos, 0]  # Z coordinate 0
         self.viewer.add_marker(
             pos=pos,
-            size=[size, size, z_size],
+            size=size,
             type=const.GEOM_CYLINDER,
             rgba=np.array(color) * alpha,
             label=label if self.render_labels else "",

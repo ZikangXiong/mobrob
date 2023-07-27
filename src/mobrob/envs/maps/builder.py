@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
+
 from mobrob.utils import DATA_DIR
 
 
@@ -97,15 +98,17 @@ class MapBuilder:
             }
         )
 
-        half_size = size / 2
-        lower_left = center - half_size
-        upper_right = center + half_size
+        lower_left = center - size
+        upper_right = center + size
 
         # convert these corners to pixels
         lower_left_pixel = self.position_to_pixel(lower_left)
         upper_right_pixel = self.position_to_pixel(upper_right)
 
         # fill in the rectangle on the map
+        upper_right_pixel = np.clip(upper_right_pixel, 0, self.map_pixel_dim)
+        lower_left_pixel = np.clip(lower_left_pixel, 0, self.map_pixel_dim)
+
         self._map[
             int(upper_right_pixel[1]) : int(lower_left_pixel[1]),
             int(lower_left_pixel[0]) : int(upper_right_pixel[0]),

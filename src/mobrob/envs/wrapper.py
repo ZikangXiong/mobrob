@@ -6,6 +6,7 @@ import pybullet as p
 import yaml
 from gymnasium.spaces import Box
 from gymnasium.wrappers import TimeLimit
+
 from mobrob.envs.mujoco_robots.robots.engine import Engine, quat2zalign
 from mobrob.envs.pybullet_robots.base import BulletEnv
 from mobrob.envs.pybullet_robots.robots.drone import Drone
@@ -304,7 +305,7 @@ class MujocoGoalEnv(EnvWrapper, ABC):
     def get_obs(self) -> np.ndarray:
         return self.env.obs()
 
-    def add_wp_marker(
+    def add_sphere_marker(
         self,
         pos: list | np.ndarray,
         size: float,
@@ -314,6 +315,20 @@ class MujocoGoalEnv(EnvWrapper, ABC):
     ):
         self.env.add_render_callback(
             lambda: self.env.render_sphere(
+                pos=pos, size=size, color=color, alpha=alpha, label=label
+            )
+        )
+
+    def add_clinder_marker(
+        self,
+        pos: list | np.ndarray,
+        size: list | np.ndarray,
+        color=(0, 1, 1, 0.5),
+        alpha=0.5,
+        label: str = "",
+    ):
+        self.env.add_render_callback(
+            lambda: self.env.render_area(
                 pos=pos, size=size, color=color, alpha=alpha, label=label
             )
         )
