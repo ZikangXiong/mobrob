@@ -20,6 +20,7 @@ class EnvWrapper(ABC, gym.Env):
         enable_gui: bool = False,
         terminate_on_goal: bool = False,
         map_id: int | None = None,
+        map_dict: dict | None = None,
     ):
         """
         Gym environment wrapper for robots
@@ -30,6 +31,7 @@ class EnvWrapper(ABC, gym.Env):
         self.enable_gui = enable_gui
         self.terminate_on_goal = terminate_on_goal
         self.map_id = map_id
+        self.map_dict = map_dict
         self._goal = None
         self._prev_pos = None
 
@@ -242,12 +244,15 @@ class MujocoGoalEnv(EnvWrapper, ABC):
         pass
 
     def get_map_config(self) -> dict:
-        if self.map_id is None:
-            return {}
+        if self.map_dict is None:
+            if self.map_id is None:
+                return {}
 
-        map_config_path = f"{DATA_DIR}/maps/{self.map_id}.yaml"
-        with open(map_config_path, "r") as f:
-            map_config = yaml.safe_load(f)
+            map_config_path = f"{DATA_DIR}/maps/{self.map_id}.yaml"
+            with open(map_config_path, "r") as f:
+                map_config = yaml.safe_load(f)
+        else:
+            map_config = self.map_dict
 
         mojoco_map_config = {}
 
@@ -599,17 +604,18 @@ def get_env(
     terminate_on_goal: bool = False,
     time_limit: int | None = None,
     map_id: int | None = None,
+    map_dict: dict | None = None,
 ):
     if env_name == "drone":
         env = DroneEnv(enable_gui, terminate_on_goal)
     elif env_name == "point":
-        env = PointEnv(enable_gui, terminate_on_goal, map_id=map_id)
+        env = PointEnv(enable_gui, terminate_on_goal, map_id=map_id, map_dict=map_dict)
     elif env_name == "car":
-        env = CarEnv(enable_gui, terminate_on_goal, map_id=map_id)
+        env = CarEnv(enable_gui, terminate_on_goal, map_id=map_id, map_dict=map_dict)
     elif env_name == "doggo":
-        env = DoggoEnv(enable_gui, terminate_on_goal, map_id=map_id)
+        env = DoggoEnv(enable_gui, terminate_on_goal, map_id=map_id, map_dict=map_dict)
     elif env_name == "turtlebot3":
-        env = Turtlebot3Env(enable_gui, terminate_on_goal)
+        env = Turtlebot3Env(enable_gui, terminate_on_goal, map_id=map_id, map_dict=map_dict)
     else:
         raise ValueError(f"Env {env_name} not found")
 
