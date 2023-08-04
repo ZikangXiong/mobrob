@@ -231,7 +231,7 @@ if __name__ == '__main__':
     parser.add_argument('--strategy', type=str, default='center', choices=['center'])
 
     parser.add_argument('--device', type=str, default='cuda')
-    parser.add_argument('--debug', action='store_true') # display intermediate results
+    parser.add_argument('--debug', action='store_true', default=False) # display intermediate results
 
     args = parser.parse_args()
     main(args)
