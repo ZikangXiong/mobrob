@@ -15,11 +15,12 @@ from mobrob.envs.wrapper import get_env
 
 
 # Tunable 
-offset = [55,65] # this may be tuned
+#offset = [55,65] # this may be tuned
+offset = [30,45]
 size = 402 # this is the size of the map in pixels (after crop)
 field_threshold = 100000 # field is >= this size
 tape_threshold = 85 # tape is <= this size
-max_len = 250 # longest possible side length
+max_len = 70 # longest possible side length
 
 pixel_size = 0.02 # maybe change
 
@@ -223,8 +224,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     
     # Image to parse
-    parser.add_argument('--img_name', type=str, default='10005.png')
-    parser.add_argument('--img_dir', type=str, default='./example_imgs')
+    parser.add_argument('--img_name', type=str, default='37901.png')
+    parser.add_argument('--img_dir', type=str, default='./example_imgs_2')
     parser.add_argument('--yaml_name', type=str, default='map.yaml', help='name of yaml file to save map to')
 
     # strategy for generating objects
