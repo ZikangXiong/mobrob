@@ -25,7 +25,7 @@ class MapBuilder:
         else:
             if custom_path is not None:
                 config_path = custom_path
-            elif map_id is None:
+            elif map_id is not None:
                 config_path: str = f"{DATA_DIR}/maps/{map_id}.yaml"
             else:
                 raise ValueError("Either map_id or custom_path must be provided if yaml_str is not provided.")
