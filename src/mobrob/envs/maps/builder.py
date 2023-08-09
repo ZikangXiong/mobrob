@@ -18,11 +18,20 @@ class MapBuilder:
         }
 
     @classmethod
-    def from_predefined_map(cls, map_id: int):
+    def from_predefined_map(cls, map_id: int = None, custom_path: str = None, config_dict: dict = None):
         """Creates a map builder from a yaml config file."""
-        config_path: str = f"{DATA_DIR}/maps/{map_id}.yaml"
-        with open(config_path, "r") as f:
-            config = yaml.safe_load(f)
+        if config_dict is not None:
+            config = config_dict
+        else:
+            if custom_path is not None:
+                config_path = custom_path
+            elif map_id is not None:
+                config_path: str = f"{DATA_DIR}/maps/{map_id}.yaml"
+            else:
+                raise ValueError("Either map_id or custom_path must be provided if yaml_str is not provided.")
+
+            with open(config_path, "r") as f:
+                config = yaml.safe_load(f)
 
         map_builder = cls(
             map_size=np.array(config["map_size"]),
