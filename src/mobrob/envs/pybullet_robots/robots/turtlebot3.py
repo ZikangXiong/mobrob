@@ -134,7 +134,7 @@ class Turtlebot3(RobotBase):
         with suppress_stdout():
             robot_id = p.loadURDF(
                 f"{ROBOT_ASSETS_PATH}/turtlebot3/turtlebot3_waffle.urdf",
-                [0, 0, 0],
+                [1.2, 1.2, 0],
                 physicsClientId=self.client_id,
             )
         return robot_id

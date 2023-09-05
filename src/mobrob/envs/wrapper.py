@@ -6,7 +6,7 @@ import pybullet as p
 import yaml
 from gymnasium.spaces import Box
 from gymnasium.wrappers import TimeLimit
-
+from mobrob.envs.maps.builder import TwoDMap
 from mobrob.envs.mujoco_robots.robots.engine import Engine, quat2zalign
 from mobrob.envs.pybullet_robots.base import BulletEnv
 from mobrob.envs.pybullet_robots.robots.drone import Drone
@@ -19,19 +19,16 @@ class EnvWrapper(ABC, gym.Env):
         self,
         enable_gui: bool = False,
         terminate_on_goal: bool = False,
-        map_id: int | None = None,
-        map_dict: dict | None = None,
+        map_config: dict | None = None,
     ):
         """
         Gym environment wrapper for robots
         :param enable_gui: whether to enable the GUI
         :param terminate_on_goal: whether to terminate the episode when the robot reaches a goal
-        :param map_id: the id of the map, if None, no obstacles will be added
         """
         self.enable_gui = enable_gui
         self.terminate_on_goal = terminate_on_goal
-        self.map_id = map_id
-        self.map_dict = map_dict
+        self.map_config = map_config
         self._goal = None
         self._prev_pos = None
 
@@ -244,20 +241,10 @@ class MujocoGoalEnv(EnvWrapper, ABC):
         pass
 
     def get_map_config(self) -> dict:
-        if self.map_dict is None:
-            if self.map_id is None:
-                return {}
-
-            map_config_path = f"{DATA_DIR}/maps/{self.map_id}.yaml"
-            with open(map_config_path, "r") as f:
-                map_config = yaml.safe_load(f)
-        else:
-            map_config = self.map_dict
-
         mojoco_map_config = {}
 
-        placement_extents = np.array(map_config["map_size"]) / 20
-        map_size = np.array(map_config["map_size"])
+        placement_extents = np.array(self.map_config["map_size"]) / 20
+        map_size = np.array(self.map_config["map_size"])
         map_size_lower = -map_size / 2 - placement_extents
         map_size_upper = map_size / 2 + placement_extents
         x_min, y_min, x_max, y_max = (
@@ -268,7 +255,7 @@ class MujocoGoalEnv(EnvWrapper, ABC):
         )
         mojoco_map_config["placements_extents"] = [x_min, y_min, x_max, y_max]
 
-        mojoco_map_config["obstacles"] = map_config["obstacles"]
+        mojoco_map_config["obstacles"] = self.map_config["obstacles"]
 
         return mojoco_map_config
 
@@ -550,7 +537,14 @@ class DroneEnv(BulletGoalEnv):
 
 class Turtlebot3Env(BulletGoalEnv):
     def build_env(self) -> Engine | BulletEnv:
-        return BulletEnv(Turtlebot3(enable_gui=self.enable_gui))
+        
+        env = BulletEnv(Turtlebot3(enable_gui=self.enable_gui))
+
+        if self.map_config is not None:
+            map = TwoDMap(self.map_config)
+            map.to_pybullet(env.client_id)
+
+        return env
 
     def get_pos(self):
         return self.env.robot.get_pos()
@@ -584,10 +578,10 @@ class Turtlebot3Env(BulletGoalEnv):
         return gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
 
     def get_init_space(self) -> gym.Space:
-        return gym.spaces.Box(low=-0.8, high=0.8, shape=(2,), dtype=np.float32)
+        return gym.spaces.Box(low=0, high=2.42, shape=(2,), dtype=np.float32)
 
     def get_goal_space(self) -> gym.Space:
-        return gym.spaces.Box(low=-0.8, high=0.8, shape=(2,), dtype=np.float32)
+        return gym.spaces.Box(low=0.1, high=2.3, shape=(2,), dtype=np.float32)
 
     def step(
         self, action: list | np.ndarray
@@ -603,19 +597,18 @@ def get_env(
     enable_gui: bool = False,
     terminate_on_goal: bool = False,
     time_limit: int | None = None,
-    map_id: int | None = None,
-    map_dict: dict | None = None,
+    map_config: dict | None = None,
 ):
     if env_name == "drone":
         env = DroneEnv(enable_gui, terminate_on_goal)
     elif env_name == "point":
-        env = PointEnv(enable_gui, terminate_on_goal, map_id=map_id, map_dict=map_dict)
+        env = PointEnv(enable_gui, terminate_on_goal, map_config=map_config)
     elif env_name == "car":
-        env = CarEnv(enable_gui, terminate_on_goal, map_id=map_id, map_dict=map_dict)
+        env = CarEnv(enable_gui, terminate_on_goal, map_config=map_config)
     elif env_name == "doggo":
-        env = DoggoEnv(enable_gui, terminate_on_goal, map_id=map_id, map_dict=map_dict)
+        env = DoggoEnv(enable_gui, terminate_on_goal, map_config=map_config)
     elif env_name == "turtlebot3":
-        env = Turtlebot3Env(enable_gui, terminate_on_goal, map_id=map_id, map_dict=map_dict)
+        env = Turtlebot3Env(enable_gui, terminate_on_goal, map_config=map_config)
     else:
         raise ValueError(f"Env {env_name} not found")
 

@@ -1,163 +1,269 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-import yaml
+import pybullet as p
 
-from mobrob.utils import DATA_DIR
+
+class TwoDMap:
+    def __init__(self, map_config: dict):
+        self.map_config = map_config
+        self.lim = (0, map_config["map_size"])
+
+    def generate_map_img(self, resolution: int = 224, save_path: str = None):
+        # plot obstacles in an array
+        map_img = np.zeros((resolution, resolution))
+
+        for obstacle in self.map_config["obstacles"]:
+            if obstacle["type"] == "circle":
+                center = np.array(obstacle["center"])
+                radius = obstacle["radius"]
+
+                # convert these corners to pixels
+                center = center / (self.lim[1] - self.lim[0]) * resolution
+                center = center.astype(int)
+                radius = radius / (self.lim[1] - self.lim[0]) * resolution
+                radius = int(radius)
+
+                x, y = np.ogrid[
+                    -center[1] : resolution - center[1],
+                    -center[0] : resolution - center[0],
+                ]
+                mask = x * x + y * y <= radius**2
+                map_img[mask] = 1
+            elif obstacle["type"] == "rectangle":
+                center = np.array(obstacle["center"])
+                size = np.array(obstacle["size"])
+
+                # convert these corners to pixels
+                center = center * resolution / (self.lim[1] - self.lim[0])
+                center = center.astype(int)
+                size = size * resolution / (self.lim[1] - self.lim[0])
+                size = size.astype(int)
+
+                upper_left = center - size
+                lower_right = center + size
+
+                # fill in the rectangle on the map
+                upper_left = np.clip(upper_left, 0, resolution)
+                lower_right = np.clip(lower_right, 0, resolution)
+
+                map_img[
+                    int(upper_left[0]) : int(lower_right[0]),
+                    int(upper_left[1]) : int(lower_right[1]),
+                ] = 1
+
+        print(map_img)
+        plt.imshow(map_img)
+        plt.axis("off")
+        plt.show()
+
+        if save_path is not None:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+        plt.close()
+
+        return map_img
+
+    def to_mojoco(self) -> dict:
+        """
+        Converts the map to a mojoco config.
+        1. switch x and y axis.
+        2. move origin to the center.
+        3. invert y axis.
+        """
+        mujoco_config = {
+            "obstacles": [],
+            "map_size": self.map_config["map_size"],
+        }
+        for obj in self.map_config:
+            swich_xy = [obj["center"][1], obj["center"][0]]
+            move_origin = [
+                swich_xy[0] - (self.lim[0] + self.lim[1]) / 2,
+                swich_xy[1] - (self.lim[0] + self.lim[1]) / 2,
+            ]
+            invert_y = [move_origin[0], -move_origin[1]]
+            center = invert_y
+
+            if obj["type"] == "rectangle":
+                size = [obj["size"][1], obj["size"][0]]
+                mujoco_config["obstacles"].append(
+                    {
+                        "type": "rectangle",
+                        "center": center,
+                        "rotation": [0, 0, 0, 1],
+                        "size": size,
+                    }
+                )
+            elif obj["type"] == "circle":
+                radius = obj["radius"]
+                mujoco_config["obstacles"].append(
+                    {
+                        "type": "circle",
+                        "center": center,
+                        "radius": radius,
+                    }
+                )
+
+        return mujoco_config
+
+    def to_pybullet(self, client_id: int = None):
+        """
+        Builds the map in pybullet.
+        """
+
+        for obj in self.map_config["obstacles"]:
+            if obj["type"] == "circle":
+                shape_id = p.createCollisionShape(
+                    p.GEOM_CYLINDER,
+                    radius=obj["radius"],
+                    height=0.1,
+                    physicsClientId=client_id,
+                )
+                p.createMultiBody(
+                    baseMass=0,
+                    basePosition=np.r_[obj["center"][::-1], 0.1],
+                    baseCollisionShapeIndex=shape_id,
+                    physicsClientId=client_id,
+                )
+            elif obj["type"] == "rectangle":
+                shape_id = p.createCollisionShape(
+                    p.GEOM_BOX,
+                    halfExtents=np.r_[obj["size"], 0.1],
+                    physicsClientId=client_id,
+                )
+                p.createMultiBody(
+                    baseMass=0,
+                    basePosition=np.r_[obj["center"], 0.1],
+                    baseCollisionShapeIndex=shape_id,
+                    physicsClientId=client_id,
+                )
 
 
 class MapBuilder:
-    def __init__(self, map_size: np.ndarray, pixel_size: float):
-        self.map_size = map_size
-        self.pixel_size = pixel_size
-        self.map_pixel_dim = self.value_to_pixel(self.map_size)
-        self._map = self.create_empty_map()
-        self.config = {
-            "map_size": self.map_size.tolist(),
-            "pixel_size": self.pixel_size,
-            "obstacles": [],
-        }
+    def __init__(self):
+        self.config = {}
 
-    @classmethod
-    def from_predefined_map(cls, map_id: int = None, custom_path: str = None, config_dict: dict = None):
-        """Creates a map builder from a yaml config file."""
-        if config_dict is not None:
-            config = config_dict
-        else:
-            if custom_path is not None:
-                config_path = custom_path
-            elif map_id is not None:
-                config_path: str = f"{DATA_DIR}/maps/{map_id}.yaml"
-            else:
-                raise ValueError("Either map_id or custom_path must be provided if yaml_str is not provided.")
-
-            with open(config_path, "r") as f:
-                config = yaml.safe_load(f)
-
-        map_builder = cls(
-            map_size=np.array(config["map_size"]),
-            pixel_size=config["pixel_size"],
-        )
-
-        for obstacle in config["obstacles"]:
-            if obstacle["type"] == "circle":
-                map_builder.add_circle_obstacle(
-                    center=np.array(obstacle["center"]),
-                    radius=obstacle["radius"],
-                )
-            elif obstacle["type"] == "rectangle":
-                map_builder.add_rectangle_obstacle(
-                    center=np.array(obstacle["center"]),
-                    size=np.array(obstacle["size"]),
-                )
-            else:
-                raise ValueError(f"Unknown obstacle type {obstacle['type']}")
-
-        return map_builder
-
-    def create_empty_map(self):
-        """Creates an empty map of given size."""
-        return np.zeros(self.map_pixel_dim.astype(int))
-
-    def value_to_pixel(self, value: np.ndarray) -> np.ndarray:
-        """Converts a value in meters to pixels."""
-        pixel_value = (value / self.pixel_size).round()
-        if pixel_value.size == 1:
-            return pixel_value.item()
-        return pixel_value
-
-    def position_to_pixel(self, position: np.ndarray) -> np.ndarray:
-        """Converts a position in meters to pixels."""
-        position = position[..., ::-1]
-        pixel_position = self.value_to_pixel(position)
-
-        # rotate 90 degrees
-        rotate_matrix = np.array([[0, -1], [1, 0]])
-        pixel_position = np.matmul(pixel_position, rotate_matrix)
-        # move origin to upper left corner
-        pixel_position = pixel_position + self.map_pixel_dim / 2
-
-        return pixel_position
-
-    def add_circle_obstacle(self, center: np.ndarray, radius: float):
-        """Adds a circular obstacle to the map."""
-        self.config["obstacles"].append(
-            {
-                "type": "circle",
-                "center": center.tolist(),
-                "radius": radius,
-            }
-        )
-        center_pixel = self.position_to_pixel(center)
-        radius_pixel = self.value_to_pixel(np.array(radius))
-        y, x = np.ogrid[
-            -center_pixel[1] : self.map_pixel_dim[0] - center_pixel[1],
-            -center_pixel[0] : self.map_pixel_dim[1] - center_pixel[0],
-        ]
-
-        mask = x * x + y * y <= radius_pixel**2
-        self._map[mask] = 1
-
-    def add_rectangle_obstacle(self, center: np.ndarray, size: np.ndarray):
-        """Adds a rectangular obstacle to the map."""
+    def add_wall(self, map_size: float):
+        # north wall
         self.config["obstacles"].append(
             {
                 "type": "rectangle",
-                "center": center.tolist(),
-                "size": size.tolist(),
+                "center": [0, map_size / 2],
+                "rotation": [0, 0, 0, 1],
+                "size": [0.1, map_size / 2],
             }
         )
 
-        lower_left = center - size
-        upper_right = center + size
+        # south wall
+        self.config["obstacles"].append(
+            {
+                "type": "rectangle",
+                "center": [map_size, map_size / 2],
+                "rotation": [0, 0, 0, 1],
+                "size": [0.1, map_size / 2],
+            }
+        )
 
-        # convert these corners to pixels
-        lower_left_pixel = self.position_to_pixel(lower_left)
-        upper_right_pixel = self.position_to_pixel(upper_right)
+        # east wall
+        self.config["obstacles"].append(
+            {
+                "type": "rectangle",
+                "center": [map_size / 2, 0],
+                "rotation": [0, 0, 0, 1],
+                "size": [map_size / 2, 0.1],
+            }
+        )
 
-        # fill in the rectangle on the map
-        upper_right_pixel = np.clip(upper_right_pixel, 0, self.map_pixel_dim)
-        lower_left_pixel = np.clip(lower_left_pixel, 0, self.map_pixel_dim)
+        # west wall
+        self.config["obstacles"].append(
+            {
+                "type": "rectangle",
+                "center": [map_size / 2, map_size],
+                "rotation": [0, 0, 0, 1],
+                "size": [map_size / 2, 0.1],
+            }
+        )
 
-        self._map[
-            int(upper_right_pixel[1]) : int(lower_left_pixel[1]),
-            int(lower_left_pixel[0]) : int(upper_right_pixel[0]),
-        ] = 1
+    def add_rectangle(self, center: list, size: list):
+        self.config["obstacles"].append(
+            {
+                "type": "rectangle",
+                "center": center,
+                "rotation": [0, 0, 0, 1],
+                "size": size,
+            }
+        )
 
-    def scale_map(self, scale_factor: float):
-        """Scales the map."""
-        self.pixel_size *= scale_factor
-        self.map_size *= scale_factor
-        self.map_pixel_dim = self.value_to_pixel(self.map_size)
+    def add_circle(self, center: list, radius: float):
+        self.config["obstacles"].append(
+            {
+                "type": "circle",
+                "center": center,
+                "radius": radius,
+            }
+        )
 
-        self.config["map_size"] = (
-            np.array(self.config["map_size"]) * scale_factor
-        ).tolist()
-        self.config["pixel_size"] *= scale_factor
+    def sample_a_map(
+        self,
+        map_size: float,
+        n_obs: int,
+        size_range: tuple = (0.05, 0.1),
+        keepout: float = 0.3,
+    ) -> TwoDMap:
+        self.config = {
+            "map_size": map_size,
+            "obstacles": [],
+        }
 
-        self._map = self.create_empty_map()
-        obstacles = self.config["obstacles"]
-        self.config["obstacles"] = []
-        for obstacle in obstacles:
-            if obstacle["type"] == "circle":
-                self.add_circle_obstacle(
-                    center=np.array(obstacle["center"]) * scale_factor,
-                    radius=obstacle["radius"] * scale_factor,
-                )
-            elif obstacle["type"] == "rectangle":
-                self.add_rectangle_obstacle(
-                    center=np.array(obstacle["center"]) * scale_factor,
-                    size=np.array(obstacle["size"]) * scale_factor,
-                )
-            else:
-                raise ValueError(f"Unknown obstacle type {obstacle['type']}")
+        for _ in range(n_obs):
+            shape = np.random.choice(["circle", "rectangle"])
 
-    def plot_map(self):
-        plt.imshow(self._map)
-        plt.show()
+            if shape == "circle":
+                for _ in range(100):
+                    radius = np.random.uniform(*size_range)
+                    center = np.random.uniform(0.2, map_size - 0.2, 2)
+                    new_obj = {
+                        "type": "circle",
+                        "center": center.tolist(),
+                        "radius": radius,
+                    }
+                    if not self.check_collision(new_obj, keepout=keepout):
+                        break
+                self.add_circle(center.tolist(), radius)
+            elif shape == "rectangle":
+                for _ in range(100):
+                    size = np.random.uniform(*size_range, 2)
+                    center = np.random.uniform(0.2, map_size - 0.2, 2)
+                    new_obj = {
+                        "type": "rectangle",
+                        "center": center.tolist(),
+                        "size": size.tolist(),
+                    }
+                    if not self.check_collision(new_obj, keepout=keepout):
+                        break
+                self.add_rectangle(center.tolist(), size.tolist())
 
-    def dump_config(self, path):
-        with open(path, "w") as f:
-            yaml.dump(self.config, f)
+        self.add_wall(map_size)
 
-    def get_map_array(self) -> np.ndarray:
-        return self._map
+        return TwoDMap(self.config)
+
+    def check_collision(self, new_obj: dict, keepout=0.3):
+        if new_obj["type"] == "rectangle":
+            radius = np.linalg.norm(new_obj["size"])
+        elif new_obj["type"] == "circle":
+            radius = new_obj["radius"]
+
+        for obj in self.config["obstacles"]:
+            if obj["type"] == "rectangle":
+                size = np.linalg.norm(obj["size"])
+            elif obj["type"] == "circle":
+                size = obj["radius"]
+
+            if (
+                np.linalg.norm(np.array(new_obj["center"]) - np.array(obj["center"]))
+                < radius + size - keepout
+            ):
+                return True
+
+        return False
