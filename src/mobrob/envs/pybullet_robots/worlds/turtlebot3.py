@@ -1,6 +1,5 @@
 import pybullet as p
 import pybullet_data
-
 from mobrob.envs.pybullet_robots.base import WorldBase
 from mobrob.envs.pybullet_robots.utils import ROBOT_ASSETS_PATH
 
@@ -21,7 +20,7 @@ class World(WorldBase):
         p.setTimeStep(self.timestep, physicsClientId=self.client_id)
 
         p.resetDebugVisualizerCamera(
-            1.8, 90, -89, (1.2, 1.2, 0), physicsClientId=self.client_id
+            2.5, 90, -89, (2.5, 2.5, 0), physicsClientId=self.client_id
         )
 
         p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0, physicsClientId=self.client_id)

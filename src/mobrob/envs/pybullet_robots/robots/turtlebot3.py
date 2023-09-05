@@ -1,6 +1,5 @@
 import numpy as np
 import pybullet as p
-
 from mobrob.envs.pybullet_robots.base import RobotBase
 from mobrob.envs.pybullet_robots.utils import ROBOT_ASSETS_PATH
 from mobrob.envs.pybullet_robots.worlds.turtlebot3 import World
@@ -33,9 +32,7 @@ class Turtlebot3(RobotBase):
         self.ray_angles = np.array(
             [np.pi / 2 - increment * i for i in range(self.n_rays)]
         )
-        self.default_pos, self.default_ori = p.getBasePositionAndOrientation(
-            self.robot_id, physicsClientId=self.client_id
-        )
+        self.default_pos, self.default_ori = (1.2, 1.2, 0), (0, 0, 0, 1)
 
         self.max_linear_vel = 0.26
         self.max_angular_vel = 1.82
@@ -49,8 +46,8 @@ class Turtlebot3(RobotBase):
 
         # for prop control
         self.prop_gain_means = np.array([1.0, 0.2])
-        self.prop_gain_radius = np.array(
-            [1.5, 0.5]
+        self.prop_gain_radius = (
+            np.array([1.5, 0.5]) * 2
         )  # give the ability to go in reverse direction
 
     def set_pos_and_ori(self, pos: np.ndarray = None, ori: np.ndarray = None):

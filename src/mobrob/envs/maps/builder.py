@@ -10,7 +10,7 @@ class TwoDMap:
         self.map_config = map_config
         self.lim = (0, map_config["map_size"])
 
-    def generate_map_img(self, resolution: int = 224, save_path: str = None):
+    def generate_map_img(self, resolution: int = 224) -> np.ndarray:
         # plot obstacles in an array
         map_img = np.zeros((resolution, resolution))
 
@@ -52,16 +52,6 @@ class TwoDMap:
                     int(upper_left[0]) : int(lower_right[0]),
                     int(upper_left[1]) : int(lower_right[1]),
                 ] = 1
-
-        print(map_img)
-        plt.imshow(map_img)
-        plt.axis("off")
-        plt.show()
-
-        if save_path is not None:
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-        plt.close()
 
         return map_img
 
