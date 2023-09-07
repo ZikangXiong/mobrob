@@ -6,6 +6,7 @@ import pybullet as p
 import yaml
 from gymnasium.spaces import Box
 from gymnasium.wrappers import TimeLimit
+
 from mobrob.envs.maps.builder import TwoDMap
 from mobrob.envs.mujoco_robots.robots.engine import Engine, quat2zalign
 from mobrob.envs.pybullet_robots.base import BulletEnv
@@ -537,7 +538,6 @@ class DroneEnv(BulletGoalEnv):
 
 class Turtlebot3Env(BulletGoalEnv):
     def build_env(self) -> Engine | BulletEnv:
-        
         env = BulletEnv(Turtlebot3(enable_gui=self.enable_gui))
 
         if self.map_config is not None:
@@ -589,7 +589,9 @@ class Turtlebot3Env(BulletGoalEnv):
         gain_changes = np.array(action, dtype=np.float32)
         twist_cmd = self.env.robot.prop_ctrl(self.get_goal(), gain_changes)
 
-        return super().step(twist_cmd)
+        _, r, done, tuncated, info = self.env.step(twist_cmd)
+
+        return self.get_obs(), r, done, tuncated, info
 
 
 def get_env(
