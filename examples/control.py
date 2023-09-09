@@ -65,7 +65,7 @@ def simulate(
 
 if __name__ == "__main__":
     args_parser = argparse.ArgumentParser()
-    args_parser.add_argument("--env-name", type=str, default="point")
+    args_parser.add_argument("--env-name", type=str, default="turtlebot3_partial_obs")
     args_parser.add_argument("--policy-name", type=str, default="ppo")
     args_parser.add_argument("--epochs", type=int, default=5)
     args_parser.add_argument("--no-gui", action="store_true", default=False)
