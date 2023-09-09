@@ -1,5 +1,6 @@
 import numpy as np
 import pybullet as p
+
 from mobrob.envs.pybullet_robots.base import RobotBase
 from mobrob.envs.pybullet_robots.utils import ROBOT_ASSETS_PATH
 from mobrob.envs.pybullet_robots.worlds.turtlebot3 import World
@@ -14,12 +15,14 @@ class Turtlebot3(RobotBase):
         raycast_height_offset: float = 0.15,
         enable_gui: bool = False,
         plot_ray: bool = False,
+        action_repeat: int = 1,
     ):
         self.ray_length = ray_length
         self.n_rays = n_rays
         self.raycast_height_offset = raycast_height_offset
         self.enable_gui = enable_gui
         self.plot_ray = plot_ray
+        self.action_repeat = action_repeat
 
         super(Turtlebot3, self).__init__(World(enable_gui=enable_gui))
 
@@ -105,7 +108,7 @@ class Turtlebot3(RobotBase):
         return self.apply_action(np.array([left, right]))
 
     def get_obs(self) -> np.ndarray:
-        state_dict = self._get_state_dict()
+        state_dict = self.get_state_dict()
         state_flatten = []
         sorted_keys = ["theta", "x", "y", "linear_velocity", "angular_velocity"]
         for k in sorted_keys:
@@ -118,7 +121,7 @@ class Turtlebot3(RobotBase):
             else:
                 state_flatten.append(state_dict[k])
 
-        ray_obs = self._get_ray_obs()
+        ray_obs = self.get_ray_obs()
 
         return np.concatenate([state_flatten, ray_obs])
 
@@ -136,7 +139,7 @@ class Turtlebot3(RobotBase):
             )
         return robot_id
 
-    def _get_state_dict(self) -> dict:
+    def get_state_dict(self) -> dict:
         states = p.getLinkState(
             self.robot_id, 0, computeLinkVelocity=1, physicsClientId=self.client_id
         )
@@ -151,7 +154,7 @@ class Turtlebot3(RobotBase):
         }
         return robot_state_dict
 
-    def _get_ray_obs(self) -> np.ndarray:
+    def get_ray_obs(self) -> np.ndarray:
         # robot state
         robot_state = p.getLinkState(self.robot_id, 0, physicsClientId=self.client_id)
         robot_angle = p.getEulerFromQuaternion(
@@ -210,7 +213,7 @@ class Turtlebot3(RobotBase):
 
     def prop_ctrl(self, pos_goal: np.ndarray, gain_changes: np.ndarray) -> np.ndarray:
         prop_gains = self.prop_gain_means + self.prop_gain_radius * gain_changes
-        state_dict = self._get_state_dict()
+        state_dict = self.get_state_dict()
         pos = np.array([state_dict["x"], state_dict["y"]])
         goal_vec = pos_goal - pos
 
@@ -246,4 +249,5 @@ class Turtlebot3(RobotBase):
         self.zero_velocity()
 
     def ctrl(self, cmd: np.ndarray):
-        self.apply_action_twist(cmd)
+        for _ in range(self.action_repeat):
+            self.apply_action_twist(cmd)

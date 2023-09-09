@@ -9,6 +9,7 @@ class TwoDMap:
     def __init__(self, map_config: dict):
         self.map_config = map_config
         self.lim = (0, map_config["map_size"])
+        self.pybullet_objects = []
 
     def generate_map_img(self, resolution: int = 224) -> np.ndarray:
         # plot obstacles in an array

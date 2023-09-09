@@ -3,16 +3,14 @@ from abc import ABC, abstractmethod
 import gymnasium as gym
 import numpy as np
 import pybullet as p
-import yaml
 from gymnasium.spaces import Box
 from gymnasium.wrappers import TimeLimit
 
-from mobrob.envs.maps.builder import TwoDMap
+from mobrob.envs.maps.builder import MapBuilder, TwoDMap
 from mobrob.envs.mujoco_robots.robots.engine import Engine, quat2zalign
 from mobrob.envs.pybullet_robots.base import BulletEnv
 from mobrob.envs.pybullet_robots.robots.drone import Drone
 from mobrob.envs.pybullet_robots.robots.turtlebot3 import Turtlebot3
-from mobrob.utils import DATA_DIR
 
 
 class EnvWrapper(ABC, gym.Env):
@@ -589,9 +587,113 @@ class Turtlebot3Env(BulletGoalEnv):
         gain_changes = np.array(action, dtype=np.float32)
         twist_cmd = self.env.robot.prop_ctrl(self.get_goal(), gain_changes)
 
-        _, r, done, tuncated, info = self.env.step(twist_cmd)
+        _, r, done, tuncated, info = super().step(twist_cmd)
+        return self.get_obs(), r, done, tuncated, info
+
+
+class Turtlebot3PremitiveEnv(BulletGoalEnv):
+    def build_env(self) -> Engine | BulletEnv:
+        env = BulletEnv(Turtlebot3(enable_gui=self.enable_gui))
+        if self.map_config is not None:
+            map = TwoDMap(self.map_config)
+        else:
+            map = MapBuilder().sample_a_map(2.42, n_obs=5)
+        map.to_pybullet(env.client_id)
+
+        return env
+
+    def get_pos(self):
+        return self.env.robot.get_pos()
+
+    def set_pos(self, pos: list | np.ndarray):
+        self.env.robot.set_pos_and_ori(pos, None)
+
+    def get_init_space(self) -> gym.Space:
+        return gym.spaces.Box(low=0.3, high=2.0, shape=(2,), dtype=np.float32)
+
+    def get_goal_space(self) -> gym.Space:
+        return gym.spaces.Box(low=0.1, high=2.3, shape=(2,), dtype=np.float32)
+
+    def get_obs(self) -> np.ndarray:
+        state_dict = self.env.robot.get_state_dict()
+        relative_pos = np.array([state_dict["x"], state_dict["y"]]) - self.get_goal()
+        theta = state_dict["theta"]
+        ray_obs = self.env.robot.get_ray_obs()
+
+        obs = np.r_[np.sin(theta), np.cos(theta), relative_pos, ray_obs]
+
+        # add noise
+        obs += np.random.normal(0, 0.05, obs.shape)
+
+        return obs
+
+    def get_observation_space(self) -> gym.Space:
+        upper_x, upper_y, upper_sin_cos = 1.0, 1.0, 1.0
+        ray_length = self.env.robot.ray_length
+
+        max_dist = (upper_x**2 + upper_y**2) ** 0.5
+        upper_obs = [upper_sin_cos, upper_sin_cos, max_dist, max_dist]
+        upper_obs += [ray_length] * self.env.robot.n_rays
+
+        upper_obs_arr = np.array(upper_obs, dtype=np.float32)
+        observation_space = gym.spaces.Box(low=-upper_obs_arr, high=upper_obs_arr)
+
+        return observation_space
+
+    def get_action_space(self) -> gym.Space:
+        return gym.spaces.Box(low=-1, high=1, shape=(5,), dtype=np.float32)
+
+    def twist_ctrl(
+        self, action: list | np.ndarray
+    ) -> tuple[np.ndarray, float, bool, bool, dict]:
+        max_lin_val = self.env.robot.max_linear_vel
+        max_ang_val = self.env.robot.max_angular_vel
+
+        lin_vel = action[0] * max_lin_val
+        ang_vel = action[1] * max_ang_val
+        twist_cmd = np.array([lin_vel, ang_vel])
+
+        _, r, done, tuncated, info = super().step(twist_cmd)
 
         return self.get_obs(), r, done, tuncated, info
+
+    def spin_clockwise(self):
+        return self.twist_ctrl(np.array([0, 1]))
+
+    def spin_counter_clockwise(self):
+        return self.twist_ctrl(np.array([0, -1]))
+
+    def move_forward(self):
+        return self.twist_ctrl(np.array([1, 0]))
+
+    def move_backward(self):
+        return self.twist_ctrl(np.array([-1, 0]))
+
+    def stop(self):
+        return self.twist_ctrl(np.array([0, 0]))
+
+    def reward_fn(self) -> float:
+        min_dist = np.min(self.env.robot.get_ray_obs())
+        if min_dist < 0.1:
+            return -0.01
+        return super().reward_fn()
+
+    def step(
+        self, action: list | np.ndarray
+    ) -> tuple[np.ndarray, float, bool, bool, dict]:
+        action = np.argmax(action)
+        if action == 0:
+            return self.spin_clockwise()
+        elif action == 1:
+            return self.spin_counter_clockwise()
+        elif action == 2:
+            return self.move_forward()
+        elif action == 3:
+            return self.move_backward()
+        elif action == 4:
+            return self.stop()
+        else:
+            raise ValueError(f"Action {action} not found")
 
 
 def get_env(
@@ -611,6 +713,10 @@ def get_env(
         env = DoggoEnv(enable_gui, terminate_on_goal, map_config=map_config)
     elif env_name == "turtlebot3":
         env = Turtlebot3Env(enable_gui, terminate_on_goal, map_config=map_config)
+    elif env_name == "turtlebot3premitive":
+        env = Turtlebot3PremitiveEnv(
+            enable_gui, terminate_on_goal, map_config=map_config
+        )
     else:
         raise ValueError(f"Env {env_name} not found")
 
