@@ -51,7 +51,7 @@ def train_with_ppo(env_name, finetune=False, save_freq=1_000_000):
 
 if __name__ == "__main__":
     args_parser = argparse.ArgumentParser()
-    args_parser.add_argument("--env-name", type=str, default="turtlebot3_partial_obs")
+    args_parser.add_argument("--env-name", type=str, default="turtlebot3premitive")
     args_parser.add_argument("--finetune", action="store_true", default=False)
     args_parser.add_argument("--save-freq", type=int, default=1_000_000)
 
