@@ -14,7 +14,7 @@ class Turtlebot3(RobotBase):
         n_rays: int = 36,
         raycast_height_offset: float = 0.15,
         enable_gui: bool = False,
-        plot_ray: bool = False,
+        plot_ray: bool = True,
         action_repeat: int = 1,
     ):
         self.ray_length = ray_length

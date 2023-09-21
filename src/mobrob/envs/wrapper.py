@@ -541,6 +541,10 @@ class Turtlebot3Env(BulletGoalEnv):
         if self.map_config is not None:
             map = TwoDMap(self.map_config)
             map.to_pybullet(env.client_id)
+        else:
+            map = MapBuilder().sample_a_map(4.5, n_obs=0)
+        
+        map.to_pybullet(env.client_id)
 
         return env
 
@@ -576,10 +580,10 @@ class Turtlebot3Env(BulletGoalEnv):
         return gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
 
     def get_init_space(self) -> gym.Space:
-        return gym.spaces.Box(low=0, high=2.42, shape=(2,), dtype=np.float32)
+        return gym.spaces.Box(low=0.5, high=2.0, shape=(2,), dtype=np.float32)
 
     def get_goal_space(self) -> gym.Space:
-        return gym.spaces.Box(low=0.1, high=2.3, shape=(2,), dtype=np.float32)
+        return gym.spaces.Box(low=0.5, high=4.0, shape=(2,), dtype=np.float32)
 
     def step(
         self, action: list | np.ndarray
