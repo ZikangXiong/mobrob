@@ -43,14 +43,11 @@ class EnvEditor:
             vid = p.createVisualShape(
                 shapeType=p.GEOM_BOX,
                 rgbaColor=color,
+                specularColor=specular,
                 halfExtents=[radius] * 3,
                 physicsClientId=self.client_id,
             )
-            cid = p.createCollisionShape(
-                shapeType=p.GEOM_BOX,
-                halfExtents=[radius] * 3,
-                physicsClientId=self.client_id,
-            )
+            cid = None
             obj_id = ObjID(vid, cid)
 
         elif name == "duck":
@@ -114,9 +111,8 @@ class EnvEditor:
         props = (size, color, specular)
         obj_id = self.get_shape("cube", props)
         body_id = p.createMultiBody(
-            baseMass=1.0 * size,
+            baseMass=0.0,
             baseVisualShapeIndex=obj_id.visual_id,
-            baseCollisionShapeIndex=obj_id.collision_id,
             basePosition=pos,
             baseOrientation=p.getQuaternionFromEuler(ori),
             useMaximalCoordinates=True,
